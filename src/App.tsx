@@ -2,11 +2,12 @@ import { HashRouter, Routes, Route, Navigate, NavLink, useNavigate } from 'react
 import { useState, type ReactElement, type ReactNode } from 'react'
 import {
   Home, Briefcase, FileText, ClipboardList, Users, ClipboardCheck,
-  UserCheck, GraduationCap, BarChart3, Settings, LogOut, Bell, Menu,
+  UserCheck, GraduationCap, BarChart3, Settings, LogOut, Menu,
 } from 'lucide-react'
 import { AuthProvider, useAuth } from './lib/auth'
 import { AlertProvider } from './lib/alerts'
 import { supabase } from './lib/supabase'
+import NotificacionesBell from './components/NotificacionesBell'
 
 import Login from './pages/Login'
 import Reset from './pages/Reset'
@@ -106,7 +107,7 @@ function Layout({ children }: { children: ReactNode }) {
             Sistema de Gestión de Vacantes y Procesos de Selección
           </div>
           <div className="flex items-center gap-3">
-            <Bell size={18} className="text-white/70" />
+            <NotificacionesBell />
             <NavLink to="/perfil" className="flex items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-xs font-semibold text-white ring-1 ring-white/30">
                 {perfil?.nombre?.slice(0, 2).toUpperCase() ?? '..'}

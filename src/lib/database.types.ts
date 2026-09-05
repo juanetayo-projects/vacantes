@@ -7,6 +7,8 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
@@ -584,6 +586,33 @@ export type Database = {
           },
         ]
       }
+      procesos: {
+        Row: {
+          activo: boolean
+          correo: string | null
+          created_at: string
+          id: number
+          nombre: string
+          orden: number
+        }
+        Insert: {
+          activo?: boolean
+          correo?: string | null
+          created_at?: string
+          id?: never
+          nombre: string
+          orden?: number
+        }
+        Update: {
+          activo?: boolean
+          correo?: string | null
+          created_at?: string
+          id?: never
+          nombre?: string
+          orden?: number
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           activo: boolean
@@ -604,6 +633,7 @@ export type Database = {
           perm_configuracion: boolean
           perm_gestion_vacantes: boolean
           perm_reportes: boolean
+          proceso_id: number | null
           role: Database["public"]["Enums"]["rol_usuario"]
           telefono: string | null
           tipo_documento: string | null
@@ -628,6 +658,7 @@ export type Database = {
           perm_configuracion?: boolean
           perm_gestion_vacantes?: boolean
           perm_reportes?: boolean
+          proceso_id?: number | null
           role?: Database["public"]["Enums"]["rol_usuario"]
           telefono?: string | null
           tipo_documento?: string | null
@@ -652,6 +683,7 @@ export type Database = {
           perm_configuracion?: boolean
           perm_gestion_vacantes?: boolean
           perm_reportes?: boolean
+          proceso_id?: number | null
           role?: Database["public"]["Enums"]["rol_usuario"]
           telefono?: string | null
           tipo_documento?: string | null
@@ -670,6 +702,13 @@ export type Database = {
             columns: ["perfil_id"]
             isOneToOne: false
             referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_proceso_id_fkey"
+            columns: ["proceso_id"]
+            isOneToOne: false
+            referencedRelation: "procesos"
             referencedColumns: ["id"]
           },
         ]
@@ -908,6 +947,7 @@ export type Database = {
           nivel_urgencia: Database["public"]["Enums"]["nivel_urgencia_enum"]
           numero_vacantes: number
           presupuesto: number | null
+          proceso_id: number | null
           rango_salarial_max: number | null
           rango_salarial_min: number | null
           reclutador_id: string | null
@@ -930,6 +970,7 @@ export type Database = {
           nivel_urgencia?: Database["public"]["Enums"]["nivel_urgencia_enum"]
           numero_vacantes?: number
           presupuesto?: number | null
+          proceso_id?: number | null
           rango_salarial_max?: number | null
           rango_salarial_min?: number | null
           reclutador_id?: string | null
@@ -952,6 +993,7 @@ export type Database = {
           nivel_urgencia?: Database["public"]["Enums"]["nivel_urgencia_enum"]
           numero_vacantes?: number
           presupuesto?: number | null
+          proceso_id?: number | null
           rango_salarial_max?: number | null
           rango_salarial_min?: number | null
           reclutador_id?: string | null
@@ -965,6 +1007,13 @@ export type Database = {
             columns: ["area_id"]
             isOneToOne: false
             referencedRelation: "areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vacantes_proceso_id_fkey"
+            columns: ["proceso_id"]
+            isOneToOne: false
+            referencedRelation: "procesos"
             referencedColumns: ["id"]
           },
           {
@@ -988,9 +1037,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      es_dueno_postulacion: { Args: { p_id: number }; Returns: boolean }
+      es_dueno_vacante: { Args: { v_id: number }; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
       is_staff: { Args: never; Returns: boolean }
       mi_area_id: { Args: never; Returns: number }
+      mi_proceso_id: { Args: never; Returns: number }
+      puede_administrar: { Args: never; Returns: boolean }
       veo_todas_areas: { Args: never; Returns: boolean }
     }
     Enums: {

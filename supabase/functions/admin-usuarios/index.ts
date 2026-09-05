@@ -31,19 +31,19 @@ Deno.serve(async (req) => {
     )
     const { data: { user } } = await caller.auth.getUser()
     if (!user) return json(401, { error: 'No autenticado' })
-    const { data: perfil } = await admin.from('profiles').select('role').eq('id', user.id).single()
-    if (perfil?.role !== 'admin') return json(403, { error: 'Solo un administrador puede gestionar usuarios' })
+    const { data: perfil } = await admin.from('profiles').select('role, perm_configuracion').eq('id', user.id).single()
+    if (perfil?.role !== 'admin' && !perfil?.perm_configuracion) return json(403, { error: 'No tienes permisos de configuración' })
   }
 
   if (accion === 'crear') {
-    const { email, password, nombre, role, area_id } = body
+    const { email, password, nombre, role, area_id, proceso_id } = body
     const codigoPerfil = role ?? 'coordinador'
     const { data: plantilla } = await admin.from('perfiles').select('*').eq('codigo', codigoPerfil).single()
 
     const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true })
     if (error) return json(400, { error: error.message })
     const { error: perfilError } = await admin.from('profiles').insert({
-      id: data.user.id, email, nombre, role: codigoPerfil, area_id: area_id ?? null,
+      id: data.user.id, email, nombre, role: codigoPerfil, area_id: area_id ?? null, proceso_id: proceso_id ?? null,
       perfil_id: plantilla?.id ?? null,
       ve_todas_areas: plantilla?.ve_todas_areas ?? false,
       perm_gestion_vacantes: plantilla?.perm_gestion_vacantes ?? false,

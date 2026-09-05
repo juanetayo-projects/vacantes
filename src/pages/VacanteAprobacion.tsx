@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
 import { PageHeader, Card, Badge, Boton, Modal, Textarea } from '../components/ui'
 import { ESTADO_VACANTE_LABELS, formatoFecha } from '../lib/data'
+import { crearNotificacion } from '../lib/notificaciones'
 import type { Tables } from '../lib/database.types'
 
 type Aprobacion = Tables<'aprobaciones'> & { profiles: { nombre: string } | null }
@@ -48,11 +49,22 @@ export default function VacanteAprobacion() {
 
     if (modal.decision === 'rechazado') {
       await supabase.from('vacantes').update({ estado: 'rechazada' }).eq('id', idNum)
+      if (vacante) await crearNotificacion(vacante.solicitante_id,
+        `Solicitud ${vacante.codigo} rechazada`,
+        comentario || 'Tu solicitud fue rechazada.', { tipo: 'error', referenciaTabla: 'vacantes', referenciaId: idNum })
     } else if (modal.decision === 'modificacion_solicitada') {
       await supabase.from('vacantes').update({ estado: 'borrador' }).eq('id', idNum)
+      if (vacante) await crearNotificacion(vacante.solicitante_id,
+        `Solicitud ${vacante.codigo}: se pidió modificación`,
+        comentario || 'Corrige tu solicitud y reenvíala.', { tipo: 'warning', referenciaTabla: 'vacantes', referenciaId: idNum })
     } else {
       const esUltimo = modal.aprobacion.orden === Math.max(...aprobaciones.map((a) => a.orden))
-      if (esUltimo) await supabase.from('vacantes').update({ estado: 'aprobada' }).eq('id', idNum)
+      if (esUltimo) {
+        await supabase.from('vacantes').update({ estado: 'aprobada' }).eq('id', idNum)
+        if (vacante) await crearNotificacion(vacante.solicitante_id,
+          `Solicitud ${vacante.codigo} aprobada`,
+          'Tu solicitud completó el flujo de aprobación.', { tipo: 'success', referenciaTabla: 'vacantes', referenciaId: idNum })
+      }
     }
 
     await supabase.from('historial_estados').insert({
@@ -86,7 +98,7 @@ export default function VacanteAprobacion() {
               Continuar con Requisición
             </Boton>
           )}
-          {vacante.estado === 'borrador' && (
+          {(vacante.estado === 'borrador' || vacante.estado === 'rechazada') && (
             <Boton className="mt-4 w-full" variante="secundario" onClick={() => navigate(`/vacantes/${vacante.id}/editar`)}>
               Editar y Reenviar
             </Boton>

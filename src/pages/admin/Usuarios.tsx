@@ -6,10 +6,11 @@ import { PageHeader, Boton, Modal, Input, Select, Badge, TableShell, TableHead, 
 import { useAlert } from '../../lib/alerts'
 import type { Tables, TablesUpdate } from '../../lib/database.types'
 
-type Usuario = Tables<'profiles'> & { areas: { nombre: string } | null }
+type Usuario = Tables<'profiles'> & { areas: { nombre: string } | null; procesos: { nombre: string } | null }
 type Perfil = Tables<'perfiles'>
 type Area = Tables<'areas'>
 type Competencia = Tables<'competencias'>
+type Proceso = Tables<'procesos'>
 
 const PERMISOS_CATALOGO = [
   { key: 've_todas_areas', label: 'Ve todas las áreas' },
@@ -23,35 +24,39 @@ const PERMISOS_CATALOGO = [
 export default function AdminUsuarios() {
   const { perfil } = useAuth()
   const { confirm, notify } = useAlert()
-  const [tab, setTab] = useState<'usuarios' | 'perfiles' | 'areas' | 'competencias'>('usuarios')
+  const [tab, setTab] = useState<'usuarios' | 'perfiles' | 'areas' | 'procesos' | 'competencias'>('usuarios')
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
   const [perfilesCatalogo, setPerfilesCatalogo] = useState<Perfil[]>([])
   const [areas, setAreas] = useState<Area[]>([])
+  const [procesos, setProcesos] = useState<Proceso[]>([])
   const [competencias, setCompetencias] = useState<Competencia[]>([])
   const [modalUsuario, setModalUsuario] = useState(false)
   const [modalEditar, setModalEditar] = useState<Usuario | null>(null)
   const [modalReset, setModalReset] = useState<Usuario | null>(null)
   const [modalArea, setModalArea] = useState<Area | 'nueva' | null>(null)
+  const [modalProceso, setModalProceso] = useState<Proceso | 'nueva' | null>(null)
   const [modalCompetencia, setModalCompetencia] = useState<Competencia | 'nueva' | null>(null)
   const [nuevaPass, setNuevaPass] = useState('')
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
 
-  const [form, setForm] = useState({ email: '', password: '', nombre: '', role: 'coordinador', area_id: '' })
-  const [formEditar, setFormEditar] = useState({ nombre: '', role: 'coordinador', area_id: '' })
+  const [form, setForm] = useState({ email: '', password: '', nombre: '', role: 'coordinador', area_id: '', proceso_id: '' })
+  const [formEditar, setFormEditar] = useState({ nombre: '', role: 'coordinador', area_id: '', proceso_id: '' })
   const [formArea, setFormArea] = useState({ nombre: '', codigo: '', activo: true })
+  const [formProceso, setFormProceso] = useState({ nombre: '', correo: '', activo: true })
   const [formCompetencia, setFormCompetencia] = useState({ nombre: '', tipo: 'tecnica', peso_defecto: '' })
 
   const puedeAdministrar = perfil?.role === 'admin' || !!perfil?.perm_configuracion
 
   async function cargar() {
-    const [{ data: u }, { data: pf }, { data: a }, { data: c }] = await Promise.all([
-      supabase.from('profiles').select('*, areas!profiles_area_id_fkey(nombre)').order('nombre'),
+    const [{ data: u }, { data: pf }, { data: a }, { data: pr }, { data: c }] = await Promise.all([
+      supabase.from('profiles').select('*, areas!profiles_area_id_fkey(nombre), procesos(nombre)').order('nombre'),
       supabase.from('perfiles').select('*').order('id'),
       supabase.from('areas').select('*').order('nombre'),
+      supabase.from('procesos').select('*').order('orden'),
       supabase.from('competencias').select('*').order('nombre'),
     ])
-    setUsuarios((u as any) ?? []); setPerfilesCatalogo(pf ?? []); setAreas(a ?? []); setCompetencias(c ?? [])
+    setUsuarios((u as any) ?? []); setPerfilesCatalogo(pf ?? []); setAreas(a ?? []); setProcesos(pr ?? []); setCompetencias(c ?? [])
   }
 
   useEffect(() => { cargar() }, [])
@@ -60,19 +65,19 @@ export default function AdminUsuarios() {
     setError(''); setGuardando(true)
     const { data: sesion } = await supabase.auth.getSession()
     const { data, error } = await supabase.functions.invoke('admin-usuarios', {
-      body: { accion: 'crear', ...form, area_id: form.area_id ? Number(form.area_id) : null },
+      body: { accion: 'crear', ...form, area_id: form.area_id ? Number(form.area_id) : null, proceso_id: form.proceso_id ? Number(form.proceso_id) : null },
       headers: { Authorization: `Bearer ${sesion.session?.access_token}` },
     })
     setGuardando(false)
     if (error || data?.error) { setError(data?.error ?? error?.message ?? 'Error al crear usuario'); return }
     setModalUsuario(false)
-    setForm({ email: '', password: '', nombre: '', role: 'coordinador', area_id: '' })
+    setForm({ email: '', password: '', nombre: '', role: 'coordinador', area_id: '', proceso_id: '' })
     notify(`Se creó el usuario ${form.nombre || ''} correctamente.`, 'success', 'Usuario creado')
     cargar()
   }
 
   function abrirEditar(u: Usuario) {
-    setFormEditar({ nombre: u.nombre, role: u.role, area_id: u.area_id ? String(u.area_id) : '' })
+    setFormEditar({ nombre: u.nombre, role: u.role, area_id: u.area_id ? String(u.area_id) : '', proceso_id: u.proceso_id ? String(u.proceso_id) : '' })
     setModalEditar(u)
   }
 
@@ -84,6 +89,7 @@ export default function AdminUsuarios() {
     const { error } = await supabase.from('profiles').update({
       nombre: formEditar.nombre,
       area_id: formEditar.area_id ? Number(formEditar.area_id) : null,
+      proceso_id: formEditar.proceso_id ? Number(formEditar.proceso_id) : null,
       role: formEditar.role as Usuario['role'],
       ...(cambioPerfil && plantilla ? {
         perfil_id: plantilla.id,
@@ -171,6 +177,34 @@ export default function AdminUsuarios() {
     else { notify(`Se eliminó el área ${a.nombre}.`, 'success'); cargar() }
   }
 
+  // --- Procesos: CRUD ---
+  function abrirProceso(p: Proceso | 'nueva') {
+    setFormProceso(p === 'nueva' ? { nombre: '', correo: '', activo: true } : { nombre: p.nombre, correo: p.correo ?? '', activo: p.activo })
+    setModalProceso(p)
+  }
+
+  async function guardarProceso() {
+    setGuardando(true)
+    const error = modalProceso === 'nueva'
+      ? (await supabase.from('procesos').insert(formProceso)).error
+      : (await supabase.from('procesos').update(formProceso).eq('id', (modalProceso as Proceso).id)).error
+    setGuardando(false)
+    if (error) { notify('No se pudo guardar el proceso.', 'error'); return }
+    notify('Proceso guardado correctamente.', 'success')
+    setModalProceso(null)
+    cargar()
+  }
+
+  async function eliminarProceso(p: Proceso) {
+    const ok = await confirm(`¿Eliminar el proceso "${p.nombre}"? Si tiene vacantes o usuarios asociados, la operación fallará.`, {
+      titulo: 'Eliminar proceso', variante: 'peligro', textoConfirmar: 'Eliminar',
+    })
+    if (!ok) return
+    const { error } = await supabase.from('procesos').delete().eq('id', p.id)
+    if (error) notify('No se pudo eliminar: probablemente tiene vacantes o usuarios asociados. Puedes marcarlo como Inactivo en su lugar.', 'error')
+    else { notify(`Se eliminó el proceso ${p.nombre}.`, 'success'); cargar() }
+  }
+
   // --- Competencias: CRUD ---
   function abrirCompetencia(c: Competencia | 'nueva') {
     setFormCompetencia(c === 'nueva' ? { nombre: '', tipo: 'tecnica', peso_defecto: '' } : { nombre: c.nombre, tipo: c.tipo, peso_defecto: String(c.peso_defecto ?? '') })
@@ -209,7 +243,7 @@ export default function AdminUsuarios() {
       <PageHeader titulo="Configuración" subtitulo="Usuarios, perfiles, áreas y competencias" />
 
       <div className="mb-4 flex gap-2 border-b border-slate-300 text-sm">
-        {(['usuarios', 'perfiles', 'areas', 'competencias'] as const).map((t) => (
+        {(['usuarios', 'perfiles', 'areas', 'procesos', 'competencias'] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)}
             className={`px-3 py-2 font-medium capitalize ${tab === t ? 'border-b-2 border-brand text-brand' : 'text-slate-500'}`}>{t}</button>
         ))}
@@ -222,7 +256,7 @@ export default function AdminUsuarios() {
           </div>
           <TableShell>
             <TableHead>
-              <th>Nombre</th><th>Correo</th><th>Perfil</th><th>Área</th><th>Estado</th><th />
+              <th>Nombre</th><th>Correo</th><th>Perfil</th><th>Área</th><th>Proceso</th><th>Estado</th><th />
             </TableHead>
             <tbody>
               {usuarios.map((u, i) => (
@@ -231,6 +265,7 @@ export default function AdminUsuarios() {
                   <td className="px-4 py-2.5 text-slate-500">{u.email}</td>
                   <td className="px-4 py-2.5">{ROLE_LABELS[u.role]}</td>
                   <td className="px-4 py-2.5 text-slate-500">{u.areas?.nombre ?? '-'}</td>
+                  <td className="px-4 py-2.5 text-slate-500">{u.procesos?.nombre ?? '-'}</td>
                   <td className="px-4 py-2.5">
                     <button onClick={() => toggleActivo(u)}>
                       <Badge texto={u.activo ? 'Activo' : 'Inactivo'} valor={u.activo ? 'aprobado' : 'rechazado'} />
@@ -245,7 +280,7 @@ export default function AdminUsuarios() {
                   </td>
                 </tr>
               ))}
-              {!usuarios.length && <TableEmpty colSpan={6}>No hay usuarios registrados</TableEmpty>}
+              {!usuarios.length && <TableEmpty colSpan={7}>No hay usuarios registrados</TableEmpty>}
             </tbody>
           </TableShell>
         </div>
@@ -310,6 +345,32 @@ export default function AdminUsuarios() {
         </div>
       )}
 
+      {tab === 'procesos' && (
+        <div>
+          <div className="mb-3 flex justify-end">
+            <Boton onClick={() => abrirProceso('nueva')}><Plus size={15} className="mr-1 inline" />Nuevo Proceso</Boton>
+          </div>
+          <TableShell>
+            <TableHead><th>Nombre</th><th>Correo Responsable</th><th>Estado</th><th /></TableHead>
+            <tbody>
+              {procesos.map((p, i) => (
+                <tr key={p.id} className={filaZebra(i)}>
+                  <td className="px-4 py-2.5">{p.nombre}</td><td className="px-4 py-2.5 text-slate-500">{p.correo ?? '-'}</td>
+                  <td className="px-4 py-2.5"><Badge texto={p.activo ? 'Activo' : 'Inactivo'} valor={p.activo ? 'aprobado' : 'rechazado'} /></td>
+                  <td className="px-4 py-2.5 text-right">
+                    <div className="flex justify-end gap-2">
+                      <button title="Editar" onClick={() => abrirProceso(p)} className="text-slate-400 hover:text-brand-light"><Pencil size={15} /></button>
+                      <button title="Eliminar" onClick={() => eliminarProceso(p)} className="text-slate-400 hover:text-rose-500"><Trash2 size={15} /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {!procesos.length && <TableEmpty colSpan={4}>Sin procesos registrados</TableEmpty>}
+            </tbody>
+          </TableShell>
+        </div>
+      )}
+
       {tab === 'competencias' && (
         <div>
           <div className="mb-3 flex justify-end">
@@ -347,6 +408,10 @@ export default function AdminUsuarios() {
             <option value="">Sin asignar</option>
             {areas.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
           </Select>
+          <Select label="Proceso" value={form.proceso_id} onChange={(e) => setForm({ ...form, proceso_id: e.target.value })}>
+            <option value="">Sin asignar</option>
+            {procesos.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+          </Select>
         </div>
         {error && <p className="mt-2 text-sm text-rose-600">{error}</p>}
         <div className="mt-4 flex justify-end gap-2 border-t border-slate-200 pt-4">
@@ -366,6 +431,10 @@ export default function AdminUsuarios() {
           <Select label="Área" value={formEditar.area_id} onChange={(e) => setFormEditar({ ...formEditar, area_id: e.target.value })}>
             <option value="">Sin asignar</option>
             {areas.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
+          </Select>
+          <Select label="Proceso" value={formEditar.proceso_id} onChange={(e) => setFormEditar({ ...formEditar, proceso_id: e.target.value })}>
+            <option value="">Sin asignar</option>
+            {procesos.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
           </Select>
         </div>
         <div className="mt-4 flex justify-end gap-2 border-t border-slate-200 pt-4">
@@ -395,6 +464,21 @@ export default function AdminUsuarios() {
           <div className="flex justify-end gap-2">
             <Boton variante="secundario" onClick={() => setModalArea(null)}>Cancelar</Boton>
             <Boton disabled={guardando} onClick={guardarArea}>{guardando ? 'Guardando…' : 'Guardar'}</Boton>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={!!modalProceso} onClose={() => setModalProceso(null)} titulo={modalProceso === 'nueva' ? 'Nuevo Proceso' : `Editar Proceso · ${(modalProceso as Proceso)?.nombre}`} ancho="max-w-sm">
+        <div className="flex flex-col gap-3">
+          <Input label="Nombre" value={formProceso.nombre} onChange={(e) => setFormProceso({ ...formProceso, nombre: e.target.value })} />
+          <Input label="Correo responsable" value={formProceso.correo} onChange={(e) => setFormProceso({ ...formProceso, correo: e.target.value })} />
+          <label className="flex items-center gap-2 text-sm text-slate-600">
+            <input type="checkbox" checked={formProceso.activo} onChange={(e) => setFormProceso({ ...formProceso, activo: e.target.checked })} />
+            Activo
+          </label>
+          <div className="flex justify-end gap-2">
+            <Boton variante="secundario" onClick={() => setModalProceso(null)}>Cancelar</Boton>
+            <Boton disabled={guardando} onClick={guardarProceso}>{guardando ? 'Guardando…' : 'Guardar'}</Boton>
           </div>
         </div>
       </Modal>

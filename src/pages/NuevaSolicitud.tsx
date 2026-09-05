@@ -18,11 +18,13 @@ export default function NuevaSolicitud() {
   const { perfil } = useAuth()
   const [paso, setPaso] = useState(0)
   const [areas, setAreas] = useState<Tables<'areas'>[]>([])
+  const [procesos, setProcesos] = useState<Tables<'procesos'>[]>([])
   const [competencias, setCompetencias] = useState<Tables<'competencias'>[]>([])
   const [enviando, setEnviando] = useState(false)
 
   // Datos generales
   const [areaId, setAreaId] = useState('')
+  const [procesoId, setProcesoId] = useState('')
   const [cargo, setCargo] = useState('')
   const [tipoVacante, setTipoVacante] = useState<'creacion' | 'reemplazo' | 'expansion'>('reemplazo')
   const [numeroVacantes, setNumeroVacantes] = useState(1)
@@ -46,13 +48,15 @@ export default function NuevaSolicitud() {
 
   useEffect(() => {
     supabase.from('areas').select('*').order('nombre').then(({ data }) => setAreas(data ?? []))
+    supabase.from('procesos').select('*').eq('activo', true).order('orden').then(({ data }) => setProcesos(data ?? []))
     supabase.from('competencias').select('*').order('nombre').then(({ data }) => setCompetencias(data ?? []))
   }, [])
 
-  // El coordinador solicita siempre para su propia área: no elige de una lista.
+  // El coordinador solicita siempre para su propia área y proceso: no elige de una lista.
   useEffect(() => {
-    if (!editando && perfil && !perfil.ve_todas_areas && perfil.area_id) {
-      setAreaId(String(perfil.area_id))
+    if (!editando && perfil && !perfil.ve_todas_areas) {
+      if (perfil.area_id) setAreaId(String(perfil.area_id))
+      if (perfil.proceso_id) setProcesoId(String(perfil.proceso_id))
     }
   }, [editando, perfil])
 
@@ -61,7 +65,7 @@ export default function NuevaSolicitud() {
     const idNum = Number(id)
     supabase.from('vacantes').select('*').eq('id', idNum).single().then(({ data: v }) => {
       if (!v) return
-      setAreaId(String(v.area_id)); setCargo(v.cargo); setTipoVacante(v.tipo_vacante)
+      setAreaId(String(v.area_id)); setProcesoId(v.proceso_id ? String(v.proceso_id) : ''); setCargo(v.cargo); setTipoVacante(v.tipo_vacante)
       setNumeroVacantes(v.numero_vacantes); setNivelUrgencia(v.nivel_urgencia)
       setFechaCobertura(v.fecha_estimada_cobertura ?? ''); setJustificacion(v.justificacion ?? '')
       setDescripcionCargo(v.descripcion_cargo ?? '')
@@ -100,6 +104,7 @@ export default function NuevaSolicitud() {
       let vacanteId = id ? Number(id) : null
       const payload = {
         area_id: Number(areaId),
+        proceso_id: procesoId ? Number(procesoId) : null,
         cargo,
         tipo_vacante: tipoVacante,
         numero_vacantes: numeroVacantes,
@@ -113,7 +118,12 @@ export default function NuevaSolicitud() {
       }
 
       if (vacanteId) {
-        await supabase.from('vacantes').update(payload).eq('id', vacanteId)
+        // Editar siempre ocurre tras un rechazo o una modificación solicitada (ver VacanteAprobacion.tsx):
+        // hay que reiniciar el ciclo de aprobación, si no la solicitud queda huérfana en 'borrador'/'rechazada'.
+        await supabase.from('vacantes').update({ ...payload, estado: 'pendiente_aprobacion' }).eq('id', vacanteId)
+        await supabase.from('aprobaciones').update({
+          estado: 'pendiente', aprobador_id: null, fecha_decision: null, comentarios: null,
+        }).eq('vacante_id', vacanteId)
       } else {
         const { data, error } = await supabase.from('vacantes').insert({
           ...payload,
@@ -175,6 +185,14 @@ export default function NuevaSolicitud() {
               </Select>
             ) : (
               <Input label="Área" value={areas.find((a) => String(a.id) === areaId)?.nombre ?? 'Sin área asignada'} disabled />
+            )}
+            {perfil?.ve_todas_areas ? (
+              <Select label="Proceso" value={procesoId} onChange={(e) => setProcesoId(e.target.value)}>
+                <option value="">Seleccionar…</option>
+                {procesos.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+              </Select>
+            ) : (
+              <Input label="Proceso" value={procesos.find((p) => String(p.id) === procesoId)?.nombre ?? 'Sin proceso asignado'} disabled />
             )}
             <Input label="Responsable" value={perfil?.nombre ?? ''} disabled />
             <h3 className="col-span-full mt-2 text-sm font-semibold text-slate-600">Información de la Vacante</h3>
@@ -276,6 +294,7 @@ export default function NuevaSolicitud() {
             <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
               <dt className="text-slate-400">Cargo</dt><dd>{cargo}</dd>
               <dt className="text-slate-400">Área</dt><dd>{areas.find((a) => String(a.id) === areaId)?.nombre}</dd>
+              <dt className="text-slate-400">Proceso</dt><dd>{procesos.find((p) => String(p.id) === procesoId)?.nombre ?? '-'}</dd>
               <dt className="text-slate-400">Tipo</dt><dd>{TIPO_VACANTE_LABELS[tipoVacante]}</dd>
               <dt className="text-slate-400">Urgencia</dt><dd><Badge texto={URGENCIA_LABELS[nivelUrgencia]} valor={nivelUrgencia} /></dd>
               <dt className="text-slate-400">Fecha estimada</dt><dd>{fechaCobertura}</dd>

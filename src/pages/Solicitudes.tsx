@@ -8,18 +8,23 @@ import type { Tables } from '../lib/database.types'
 
 type Fila = Tables<'vacantes'> & { areas: { nombre: string } | null }
 
+const ESTADOS_RESPONDIDAS = ['aprobada', 'rechazada', 'borrador'] as const
+
 export default function Solicitudes() {
   const { perfil } = useAuth()
-  const [tab, setTab] = useState<'pendientes' | 'mias'>('pendientes')
+  const esAprobador = perfil?.role === 'admin' || !!perfil?.perm_aprobaciones
+  const [tab, setTab] = useState<'pendientes' | 'mias' | 'respondidas'>(esAprobador ? 'pendientes' : 'mias')
   const [vacantes, setVacantes] = useState<Fila[]>([])
   const [cargando, setCargando] = useState(true)
 
   useEffect(() => {
     async function cargar() {
+      if (!perfil) return
       setCargando(true)
       let q = supabase.from('vacantes').select('*, areas(nombre)').order('created_at', { ascending: false })
       if (tab === 'pendientes') q = q.eq('estado', 'pendiente_aprobacion')
-      else if (perfil) q = q.eq('solicitante_id', perfil.id)
+      else if (tab === 'mias') q = q.eq('solicitante_id', perfil.id).eq('estado', 'pendiente_aprobacion')
+      else q = q.eq('solicitante_id', perfil.id).in('estado', ESTADOS_RESPONDIDAS)
       const { data } = await q
       setVacantes((data as Fila[]) ?? [])
       setCargando(false)
@@ -32,10 +37,10 @@ export default function Solicitudes() {
       <PageHeader titulo="Solicitudes de Vacante" subtitulo="Bandeja de aprobación y solicitudes propias" />
 
       <div className="mb-4 flex gap-2 border-b border-slate-200">
-        {(['pendientes', 'mias'] as const).map((t) => (
+        {(esAprobador ? (['pendientes', 'mias', 'respondidas'] as const) : (['mias', 'respondidas'] as const)).map((t) => (
           <button key={t} onClick={() => setTab(t)}
             className={`px-4 py-2 text-sm font-medium ${tab === t ? 'border-b-2 border-brand text-brand' : 'text-slate-500'}`}>
-            {t === 'pendientes' ? 'Pendientes de Aprobación' : 'Mis Solicitudes'}
+            {t === 'pendientes' ? 'Pendientes de Aprobación' : t === 'mias' ? 'Mis Solicitudes' : 'Respondidas por TTHH'}
           </button>
         ))}
       </div>
