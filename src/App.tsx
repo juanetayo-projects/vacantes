@@ -69,9 +69,9 @@ function Layout({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen bg-fondo-app">
       <aside className={`fixed inset-y-0 left-0 z-40 w-60 transform bg-gradient-to-b from-brand to-brand-dark2 text-white transition-transform
         lg:static lg:translate-x-0 ${menuAbierto ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="flex items-center gap-2 border-b border-white/10 px-4 py-4">
-          <img src={`${import.meta.env.BASE_URL}images/logo_cacsb_blanc.png`} alt="CAC" className="h-9" />
-          <span className="text-sm font-semibold leading-tight">Gestión de<br />Vacantes</span>
+        <div className="flex flex-col items-center gap-2 border-b border-white/10 px-4 py-5 text-center">
+          <img src={`${import.meta.env.BASE_URL}images/logo_cacsb_blanc.png`} alt="CAC" className="h-10" />
+          <span className="text-sm font-semibold leading-tight">Gestión de Vacantes</span>
         </div>
         <nav className="flex flex-col gap-1 p-3">
           {NAV.map(({ to, label, icon: Icon, end }) => (
@@ -100,20 +100,20 @@ function Layout({ children }: { children: ReactNode }) {
       )}
 
       <div className="flex min-h-screen flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-slate-300 bg-white px-4 py-3 shadow-sm">
-          <button className="lg:hidden" onClick={() => setMenuAbierto(true)}><Menu /></button>
-          <div className="hidden text-sm text-slate-500 lg:block">
+        <header className="flex items-center justify-between bg-gradient-to-r from-brand to-brand-dark2 px-4 py-3 shadow-md">
+          <button className="text-white lg:hidden" onClick={() => setMenuAbierto(true)}><Menu /></button>
+          <div className="hidden text-sm text-white/80 lg:block">
             Sistema de Gestión de Vacantes y Procesos de Selección
           </div>
           <div className="flex items-center gap-3">
-            <Bell size={18} className="text-slate-400" />
+            <Bell size={18} className="text-white/70" />
             <NavLink to="/perfil" className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand text-xs font-semibold text-white">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-xs font-semibold text-white ring-1 ring-white/30">
                 {perfil?.nombre?.slice(0, 2).toUpperCase() ?? '..'}
               </div>
-              <span className="hidden text-sm font-medium text-slate-700 sm:block">{perfil?.nombre}</span>
+              <span className="hidden text-sm font-medium text-white sm:block">{perfil?.nombre}</span>
             </NavLink>
-            <button onClick={salir} title="Cerrar sesión" className="text-slate-400 hover:text-rose-500">
+            <button onClick={salir} title="Cerrar sesión" className="text-white/70 hover:text-white">
               <LogOut size={18} />
             </button>
           </div>
