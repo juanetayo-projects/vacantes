@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Plus } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { PageHeader, FilterBar, Boton, Badge, Select, Input, TableShell, TableHead, TableEmpty, filaZebra } from '../components/ui'
+import { useAuth } from '../lib/auth'
 import { ESTADO_VACANTE_LABELS, diasDesde } from '../lib/data'
 import type { Tables } from '../lib/database.types'
 
@@ -11,6 +12,7 @@ type Fila = Tables<'vacantes'> & { areas: { nombre: string } | null; postulantes
 const PAGE_SIZE = 8
 
 export default function VacantesActivas() {
+  const { perfil } = useAuth()
   const [vacantes, setVacantes] = useState<Fila[]>([])
   const [areas, setAreas] = useState<Tables<'areas'>[]>([])
   const [busqueda, setBusqueda] = useState('')
@@ -63,10 +65,12 @@ export default function VacantesActivas() {
       <FilterBar>
         <Input label="Buscar vacante o código" placeholder="VAC-2026-024, Médico..." value={busqueda}
           onChange={(e) => { setBusqueda(e.target.value); setPagina(1) }} className="w-64" />
-        <Select label="Área" value={filtroArea} onChange={(e) => { setFiltroArea(e.target.value); setPagina(1) }}>
-          <option value="">Todas las áreas</option>
-          {areas.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
-        </Select>
+        {perfil?.ve_todas_areas && (
+          <Select label="Área" value={filtroArea} onChange={(e) => { setFiltroArea(e.target.value); setPagina(1) }}>
+            <option value="">Todas las áreas</option>
+            {areas.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
+          </Select>
+        )}
         <Select label="Estado" value={filtroEstado} onChange={(e) => { setFiltroEstado(e.target.value); setPagina(1) }}>
           <option value="">Todos los estados</option>
           {Object.entries(ESTADO_VACANTE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}

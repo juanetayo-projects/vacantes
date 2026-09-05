@@ -148,14 +148,16 @@ export default function Dashboard() {
           <h1 className="text-lg font-semibold text-brand">¡Bienvenido, {perfil?.nombre?.split(' ')[0]}!</h1>
           <p className="text-sm text-slate-500">{perfil ? ROLE_LABELS[perfil.role] : ''}</p>
         </div>
-        <label className="flex items-center gap-2 rounded-lg border border-celeste-borde bg-celeste-claro py-1.5 pl-3 pr-2 text-sm shadow-sm">
-          <span className="text-slate-500">Área</span>
-          <select value={filtroArea} onChange={(e) => setFiltroArea(e.target.value)}
-            className="bg-transparent text-sm font-medium text-slate-700 outline-none">
-            <option value="">Todas</option>
-            {areas.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
-          </select>
-        </label>
+        {perfil?.ve_todas_areas && (
+          <label className="flex items-center gap-2 rounded-lg border border-celeste-borde bg-celeste-claro py-1.5 pl-3 pr-2 text-sm shadow-sm">
+            <span className="text-slate-500">Área</span>
+            <select value={filtroArea} onChange={(e) => setFiltroArea(e.target.value)}
+              className="bg-transparent text-sm font-medium text-slate-700 outline-none">
+              <option value="">Todas</option>
+              {areas.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
+            </select>
+          </label>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

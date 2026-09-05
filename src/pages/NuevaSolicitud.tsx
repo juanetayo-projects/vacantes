@@ -49,6 +49,13 @@ export default function NuevaSolicitud() {
     supabase.from('competencias').select('*').order('nombre').then(({ data }) => setCompetencias(data ?? []))
   }, [])
 
+  // El coordinador solicita siempre para su propia área: no elige de una lista.
+  useEffect(() => {
+    if (!editando && perfil && !perfil.ve_todas_areas && perfil.area_id) {
+      setAreaId(String(perfil.area_id))
+    }
+  }, [editando, perfil])
+
   useEffect(() => {
     if (!id) return
     const idNum = Number(id)
@@ -161,10 +168,14 @@ export default function NuevaSolicitud() {
         {paso === 0 && (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <h3 className="col-span-full text-sm font-semibold text-slate-600">Datos del Área Solicitante</h3>
-            <Select label="Área" value={areaId} onChange={(e) => setAreaId(e.target.value)} required>
-              <option value="">Seleccionar…</option>
-              {areas.map((a) => <option key={a.id} value={a.id}>{a.nombre} ({a.codigo})</option>)}
-            </Select>
+            {perfil?.ve_todas_areas ? (
+              <Select label="Área" value={areaId} onChange={(e) => setAreaId(e.target.value)} required>
+                <option value="">Seleccionar…</option>
+                {areas.map((a) => <option key={a.id} value={a.id}>{a.nombre} ({a.codigo})</option>)}
+              </Select>
+            ) : (
+              <Input label="Área" value={areas.find((a) => String(a.id) === areaId)?.nombre ?? 'Sin área asignada'} disabled />
+            )}
             <Input label="Responsable" value={perfil?.nombre ?? ''} disabled />
             <h3 className="col-span-full mt-2 text-sm font-semibold text-slate-600">Información de la Vacante</h3>
             <Input label="Cargo solicitado" value={cargo} onChange={(e) => setCargo(e.target.value)} required />
