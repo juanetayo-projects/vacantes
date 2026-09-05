@@ -32,11 +32,13 @@ export function PageHeader({ titulo, subtitulo, acciones }:
   )
 }
 
-// --- Barra de filtros reutilizable (versión completa, con marco propio) ---
+// --- Barra de filtros reutilizable (versión completa, con marco propio).
+// Azul celeste (mismo tono que "habilitacion"): fondo celeste-claro marcado,
+// no blanco. ---
 export function FilterBar({ children }: { children: ReactNode }) {
   return (
     <div className="mb-4 flex flex-wrap items-end gap-3 rounded-xl
-                    border border-slate-300 bg-white p-4 shadow-md">
+                    border border-celeste-borde bg-celeste-claro p-4 shadow-md">
       {children}
     </div>
   )
@@ -45,22 +47,22 @@ export function FilterBar({ children }: { children: ReactNode }) {
 // --- Barra de filtros compacta: una sola línea, sin ocupar alto extra ---
 export function FilterBarCompacta({ children }: { children: ReactNode }) {
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-300
-                    bg-white px-3 py-1.5 shadow-sm">
+    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-celeste-borde
+                    bg-celeste-claro px-3 py-1.5 shadow-sm">
       {children}
     </div>
   )
 }
 
-// --- Card genérica. Si se pasa `titulo`, se dibuja un header con fondo
-// tintado que separa visualmente el título del contenido. ---
+// --- Card genérica. Si se pasa `titulo`, se dibuja un header en azul
+// celeste que separa visualmente el título del contenido. ---
 export function Card({ children, className = '', titulo, acciones }:
   { children: ReactNode; className?: string; titulo?: ReactNode; acciones?: ReactNode }) {
   if (titulo) {
     return (
       <div className={`overflow-hidden rounded-xl border border-slate-300 bg-white shadow-md ${className}`}>
-        <div className="flex items-center justify-between gap-2 border-b border-slate-200 bg-brand-50 px-4 py-2.5">
-          <h2 className="text-sm font-semibold text-brand">{titulo}</h2>
+        <div className="flex items-center justify-between gap-2 border-b border-celeste-borde bg-celeste-claro px-4 py-2.5">
+          <h2 className="text-sm font-semibold text-brand-light">{titulo}</h2>
           {acciones}
         </div>
         <div className="p-4">{children}</div>
@@ -74,7 +76,7 @@ export function Card({ children, className = '', titulo, acciones }:
   )
 }
 
-// --- Contenedor de tabla con encabezado oscuro y filas en cebra ---
+// --- Contenedor de tabla con encabezado en azul celeste y filas en cebra ---
 export function TableShell({ children }: { children: ReactNode }) {
   return (
     <div className="overflow-x-auto rounded-xl border border-slate-300 bg-white shadow-md">
@@ -85,7 +87,7 @@ export function TableShell({ children }: { children: ReactNode }) {
 
 export function TableHead({ children }: { children: ReactNode }) {
   return (
-    <thead className="bg-brand text-xs uppercase tracking-wide text-white">
+    <thead className="bg-celeste-oscuro text-xs uppercase tracking-wide text-white">
       <tr className="[&>th]:px-4 [&>th]:py-3 [&>th]:font-semibold">{children}</tr>
     </thead>
   )

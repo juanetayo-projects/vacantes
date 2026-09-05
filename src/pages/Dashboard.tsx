@@ -148,7 +148,7 @@ export default function Dashboard() {
           <h1 className="text-lg font-semibold text-brand">¡Bienvenido, {perfil?.nombre?.split(' ')[0]}!</h1>
           <p className="text-sm text-slate-500">{perfil ? ROLE_LABELS[perfil.role] : ''}</p>
         </div>
-        <label className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white py-1.5 pl-3 pr-2 text-sm shadow-sm">
+        <label className="flex items-center gap-2 rounded-lg border border-celeste-borde bg-celeste-claro py-1.5 pl-3 pr-2 text-sm shadow-sm">
           <span className="text-slate-500">Área</span>
           <select value={filtroArea} onChange={(e) => setFiltroArea(e.target.value)}
             className="bg-transparent text-sm font-medium text-slate-700 outline-none">

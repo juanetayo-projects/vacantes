@@ -14,6 +14,13 @@
   --color-turquesa: #009688;
   --color-verde-salud: #4CAF50;
 
+  /* Azul celeste (mismo tono que el proyecto "habilitacion"): headers de
+     cards/tablas y fondo de filtros */
+  --color-celeste: #38bdf8;
+  --color-celeste-claro: #E0F2FE;
+  --color-celeste-borde: #BAE6FD;
+  --color-celeste-oscuro: #0284C7;
+
   /* Semánticos, consistentes con el resto de apps */
   --color-exito: #10B981;
   --color-advertencia: #F59E0B;
