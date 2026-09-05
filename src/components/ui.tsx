@@ -1,19 +1,19 @@
 import type { ButtonHTMLAttributes, InputHTMLAttributes, SelectHTMLAttributes, TextareaHTMLAttributes, ReactNode } from 'react'
 import { X } from 'lucide-react'
 
-// --- Card de métrica con degradado institucional ---
+// --- Card de métrica con degradado institucional (compacta) ---
 export function MetricCard({
   titulo, valor, icono, sub,
 }: { titulo: string; valor: ReactNode; icono?: ReactNode; sub?: string }) {
   return (
-    <div className="rounded-2xl p-5 text-white shadow-lg shadow-brand/20
+    <div className="rounded-xl p-3.5 text-white shadow-lg shadow-brand/20
                     bg-gradient-to-br from-brand to-brand-light">
       <div className="flex items-center justify-between">
-        <span className="text-sm/5 opacity-80">{titulo}</span>
+        <span className="text-xs opacity-80">{titulo}</span>
         {icono}
       </div>
-      <div className="mt-2 text-3xl font-bold">{valor}</div>
-      {sub && <div className="mt-1 text-xs opacity-75">{sub}</div>}
+      <div className="mt-1 text-2xl font-bold leading-tight">{valor}</div>
+      {sub && <div className="mt-0.5 text-[11px] opacity-75">{sub}</div>}
     </div>
   )
 }
@@ -32,7 +32,7 @@ export function PageHeader({ titulo, subtitulo, acciones }:
   )
 }
 
-// --- Barra de filtros reutilizable ---
+// --- Barra de filtros reutilizable (versión completa, con marco propio) ---
 export function FilterBar({ children }: { children: ReactNode }) {
   return (
     <div className="mb-4 flex flex-wrap items-end gap-3 rounded-xl
@@ -42,8 +42,31 @@ export function FilterBar({ children }: { children: ReactNode }) {
   )
 }
 
-// --- Card genérica ---
-export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
+// --- Barra de filtros compacta: una sola línea, sin ocupar alto extra ---
+export function FilterBarCompacta({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-300
+                    bg-white px-3 py-1.5 shadow-sm">
+      {children}
+    </div>
+  )
+}
+
+// --- Card genérica. Si se pasa `titulo`, se dibuja un header con fondo
+// tintado que separa visualmente el título del contenido. ---
+export function Card({ children, className = '', titulo, acciones }:
+  { children: ReactNode; className?: string; titulo?: ReactNode; acciones?: ReactNode }) {
+  if (titulo) {
+    return (
+      <div className={`overflow-hidden rounded-xl border border-slate-300 bg-white shadow-md ${className}`}>
+        <div className="flex items-center justify-between gap-2 border-b border-slate-200 bg-brand-50 px-4 py-2.5">
+          <h2 className="text-sm font-semibold text-brand">{titulo}</h2>
+          {acciones}
+        </div>
+        <div className="p-4">{children}</div>
+      </div>
+    )
+  }
   return (
     <div className={`rounded-xl border border-slate-300 bg-white p-5 shadow-md ${className}`}>
       {children}
@@ -202,6 +225,25 @@ export function Input({ label, ...props }: { label?: string } & InputHTMLAttribu
       {label && <span className="font-medium text-slate-600">{label}</span>}
       <input {...props}
         className={`rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-light focus:outline-none focus:ring-1 focus:ring-brand-light ${props.className ?? ''}`} />
+    </label>
+  )
+}
+
+/** Input de dinero: guarda solo dígitos (string) pero muestra con separador de miles y sufijo COP. */
+export function InputMoneda({ label, value, onChange, className = '', ...props }:
+  { label?: string; value: string; onChange: (valor: string) => void } &
+  Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type'>) {
+  const formateado = value ? new Intl.NumberFormat('es-CO').format(Number(value)) : ''
+  return (
+    <label className="flex flex-col gap-1 text-sm">
+      {label && <span className="font-medium text-slate-600">{label}</span>}
+      <div className={`flex items-center rounded-lg border border-slate-300 focus-within:border-brand-light focus-within:ring-1 focus-within:ring-brand-light ${className}`}>
+        <span className="pl-3 text-sm text-slate-400">$</span>
+        <input {...props} type="text" inputMode="numeric" value={formateado}
+          onChange={(e) => onChange(e.target.value.replace(/\D/g, ''))}
+          className="w-full min-w-0 bg-transparent px-2 py-2 text-sm outline-none" />
+        <span className="pr-3 text-xs text-slate-400">COP</span>
+      </div>
     </label>
   )
 }

@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
-import { PageHeader, Card, Stepper, Boton, Input, Select, Textarea, Badge } from '../components/ui'
+import { PageHeader, Card, Stepper, Boton, Input, InputMoneda, Select, Textarea, Badge } from '../components/ui'
 import { TIPO_VACANTE_LABELS, URGENCIA_LABELS, NIVELES_APROBACION, formatoMoneda } from '../lib/data'
 import type { Tables } from '../lib/database.types'
 
@@ -253,9 +253,9 @@ export default function NuevaSolicitud() {
 
         {paso === 3 && (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <Input label="Presupuesto asignado" type="number" value={presupuesto} onChange={(e) => setPresupuesto(e.target.value)} />
-            <Input label="Rango salarial mínimo" type="number" value={salarioMin} onChange={(e) => setSalarioMin(e.target.value)} />
-            <Input label="Rango salarial máximo" type="number" value={salarioMax} onChange={(e) => setSalarioMax(e.target.value)} />
+            <InputMoneda label="Presupuesto asignado" value={presupuesto} onChange={setPresupuesto} />
+            <InputMoneda label="Rango salarial mínimo" value={salarioMin} onChange={setSalarioMin} />
+            <InputMoneda label="Rango salarial máximo" value={salarioMax} onChange={setSalarioMax} />
           </div>
         )}
 

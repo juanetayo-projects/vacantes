@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
-import { PageHeader, Card, Stepper, Boton, Input, Select, Textarea, Badge } from '../components/ui'
+import { PageHeader, Card, Stepper, Boton, Input, InputMoneda, Select, Textarea, Badge } from '../components/ui'
 import { useAlert } from '../lib/alerts'
 import { formatoMoneda } from '../lib/data'
 import type { Tables } from '../lib/database.types'
@@ -120,7 +120,7 @@ export default function Contratacion() {
           <div className="flex flex-col gap-4">
             <h3 className="text-sm font-semibold text-slate-600">Oferta Laboral</h3>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Input label="Salario Ofrecido" type="number" value={salario} onChange={(e) => setSalario(e.target.value)} />
+              <InputMoneda label="Salario Ofrecido" value={salario} onChange={setSalario} />
               <Input label="Fecha de Inicio" type="date" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} />
               <Select label="Tipo de Contrato" value={tipoContrato} onChange={(e) => setTipoContrato(e.target.value)}>
                 <option>Término indefinido</option><option>Término fijo</option><option>Obra o labor</option><option>Prestación de servicios</option>

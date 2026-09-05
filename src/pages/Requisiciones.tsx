@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
-import { PageHeader, Badge, Boton, Modal, Textarea, Select, Input, TableShell, TableHead, TableEmpty, filaZebra } from '../components/ui'
+import { PageHeader, Badge, Boton, Modal, Textarea, Select, Input, InputMoneda, TableShell, TableHead, TableEmpty, filaZebra } from '../components/ui'
 import { ESTADO_VACANTE_LABELS, formatoFecha } from '../lib/data'
 import type { Tables } from '../lib/database.types'
 
@@ -144,7 +144,7 @@ export default function Requisiciones() {
               <option value="">Sin asignar</option>
               {reclutadores.map((r) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
             </Select>
-            <Input label="Presupuesto de reclutamiento" type="number" value={presupuestoRecl} onChange={(e) => setPresupuestoRecl(e.target.value)} />
+            <InputMoneda label="Presupuesto de reclutamiento" value={presupuestoRecl} onChange={setPresupuestoRecl} />
           </div>
         </div>
         <div className="mt-4 flex justify-end gap-2 border-t border-slate-200 pt-4">

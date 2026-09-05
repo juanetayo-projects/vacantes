@@ -7,7 +7,7 @@ import {
 } from 'recharts'
 import { supabase } from '../lib/supabase'
 import { useAuth, ROLE_LABELS } from '../lib/auth'
-import { MetricCard, Card, Badge, FilterBar, Select, TableHead, TableEmpty, filaZebra, tooltipOscuroProps } from '../components/ui'
+import { MetricCard, Card, Badge, TableHead, TableEmpty, filaZebra, tooltipOscuroProps } from '../components/ui'
 import { MiniCalendario, type EventoCalendario } from '../components/MiniCalendario'
 import { ESTADO_VACANTE_LABELS, URGENCIA_LABELS, diasDesde } from '../lib/data'
 import type { Tables } from '../lib/database.types'
@@ -143,40 +143,41 @@ export default function Dashboard() {
 
   return (
     <div>
-      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-lg font-semibold text-brand">¡Bienvenido, {perfil?.nombre?.split(' ')[0]}!</h1>
           <p className="text-sm text-slate-500">{perfil ? ROLE_LABELS[perfil.role] : ''}</p>
         </div>
-        <FilterBar>
-          <Select label="Área" value={filtroArea} onChange={(e) => setFiltroArea(e.target.value)}>
-            <option value="">Todas las áreas</option>
+        <label className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white py-1.5 pl-3 pr-2 text-sm shadow-sm">
+          <span className="text-slate-500">Área</span>
+          <select value={filtroArea} onChange={(e) => setFiltroArea(e.target.value)}
+            className="bg-transparent text-sm font-medium text-slate-700 outline-none">
+            <option value="">Todas</option>
             {areas.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
-          </Select>
-        </FilterBar>
+          </select>
+        </label>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <MetricCard titulo="Vacantes Activas" valor={activas.length} icono={<Briefcase size={18} />} />
-        <MetricCard titulo="Candidatos en Proceso" valor={candidatosEnProceso} icono={<Users size={18} />} />
-        <MetricCard titulo="Entrevistas Hoy" valor={entrevistasHoy} icono={<CalendarClock size={18} />} />
-        <MetricCard titulo="Contrataciones Mes" valor={contratacionesMes} icono={<UserCheck size={18} />} />
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <MetricCard titulo="Vacantes Activas" valor={activas.length} icono={<Briefcase size={16} />} />
+        <MetricCard titulo="Candidatos en Proceso" valor={candidatosEnProceso} icono={<Users size={16} />} />
+        <MetricCard titulo="Entrevistas Hoy" valor={entrevistasHoy} icono={<CalendarClock size={16} />} />
+        <MetricCard titulo="Contrataciones Mes" valor={contratacionesMes} icono={<UserCheck size={16} />} />
       </div>
 
-      <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card>
-          <h2 className="mb-3 text-sm font-semibold text-slate-700">Estado de Vacantes</h2>
+      <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
+        <Card titulo="Estado de Vacantes">
           {donutData.length ? (
-            <ResponsiveContainer width="100%" height={220}>
+            <ResponsiveContainer width="100%" height={170}>
               <PieChart>
-                <Pie data={donutData} dataKey="value" nameKey="name" innerRadius={55} outerRadius={85} paddingAngle={2}>
+                <Pie data={donutData} dataKey="value" nameKey="name" innerRadius={42} outerRadius={65} paddingAngle={2}>
                   {donutData.map((_, i) => <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />)}
                 </Pie>
                 <Tooltip {...tooltipOscuroProps} />
               </PieChart>
             </ResponsiveContainer>
-          ) : <p className="py-8 text-center text-sm text-slate-400">Sin datos aún</p>}
-          <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-600">
+          ) : <p className="py-6 text-center text-sm text-slate-400">Sin datos aún</p>}
+          <div className="mt-1 flex flex-wrap gap-2.5 text-xs text-slate-600">
             {donutData.map((d, i) => (
               <span key={d.name} className="flex items-center gap-1">
                 <span className="h-2 w-2 rounded-full" style={{ background: DONUT_COLORS[i % DONUT_COLORS.length] }} />
@@ -186,12 +187,9 @@ export default function Dashboard() {
           </div>
         </Card>
 
-        <Card>
-          <h2 className="mb-3 text-sm font-semibold text-slate-700">
-            Tiempo Promedio de Cobertura {tiempoPromedio != null && <span className="text-brand">· {tiempoPromedio} días</span>}
-          </h2>
+        <Card titulo={<>Tiempo Promedio de Cobertura {tiempoPromedio != null && <span className="font-normal text-slate-500">· {tiempoPromedio} días</span>}</>}>
           {tiempoCobertura.length ? (
-            <ResponsiveContainer width="100%" height={220}>
+            <ResponsiveContainer width="100%" height={170}>
               <LineChart data={tiempoCobertura}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="mes" tick={{ fontSize: 12 }} />
@@ -200,13 +198,12 @@ export default function Dashboard() {
                 <Line type="monotone" dataKey="dias" stroke="#009688" strokeWidth={2} dot={{ r: 3 }} />
               </LineChart>
             </ResponsiveContainer>
-          ) : <p className="py-8 text-center text-sm text-slate-400">Aún no hay vacantes contratadas para calcular tendencia</p>}
+          ) : <p className="py-6 text-center text-sm text-slate-400">Aún no hay vacantes contratadas para calcular tendencia</p>}
         </Card>
 
-        <Card>
-          <h2 className="mb-3 text-sm font-semibold text-slate-700">Vacantes por Área</h2>
+        <Card titulo="Vacantes por Área">
           {porArea.length ? (
-            <ResponsiveContainer width="100%" height={220}>
+            <ResponsiveContainer width="100%" height={170}>
               <BarChart data={porArea} layout="vertical" margin={{ left: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                 <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12 }} />
@@ -215,12 +212,11 @@ export default function Dashboard() {
                 <Bar dataKey="cantidad" fill="#0D2D6B" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
-          ) : <p className="py-8 text-center text-sm text-slate-400">Sin datos aún</p>}
+          ) : <p className="py-6 text-center text-sm text-slate-400">Sin datos aún</p>}
         </Card>
 
-        <Card>
-          <h2 className="mb-3 text-sm font-semibold text-slate-700">Vacantes Críticas</h2>
-          <div className="overflow-x-auto rounded-lg border border-slate-200">
+        <Card titulo="Vacantes Críticas">
+          <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <TableHead>
                 <th>Vacante</th><th>Área</th><th>Urgencia</th><th>Días</th>
@@ -243,9 +239,8 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <h2 className="mb-3 text-sm font-semibold text-slate-700">Mapa de Calor · Urgencia por Área</h2>
+      <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-3">
+        <Card titulo="Mapa de Calor · Urgencia por Área" className="lg:col-span-2">
           {heatmapData.filas.length ? (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -261,7 +256,7 @@ export default function Dashboard() {
                       <td className="py-1 pr-3 text-xs font-medium text-slate-600">{area}</td>
                       {NIVELES_URGENCIA.map((n) => (
                         <td key={n} className="p-1">
-                          <div className="flex h-9 items-center justify-center rounded-md text-xs font-semibold text-brand"
+                          <div className="flex h-8 items-center justify-center rounded-md text-xs font-semibold text-brand"
                             style={{ background: colorCelda(valores[n], heatmapData.max) }}>
                             {valores[n] > 0 ? valores[n] : ''}
                           </div>
@@ -272,11 +267,10 @@ export default function Dashboard() {
                 </tbody>
               </table>
             </div>
-          ) : <p className="py-8 text-center text-sm text-slate-400">Sin vacantes activas para mostrar</p>}
+          ) : <p className="py-6 text-center text-sm text-slate-400">Sin vacantes activas para mostrar</p>}
         </Card>
 
-        <Card>
-          <h2 className="mb-2 text-sm font-semibold text-slate-700">Agenda de Entrevistas</h2>
+        <Card titulo="Agenda de Entrevistas">
           <MiniCalendario eventos={eventosCalendario} />
         </Card>
       </div>
