@@ -66,8 +66,10 @@ export const useAuth = () => useContext(Ctx)
 
 export const ROLE_LABELS: Record<string, string> = {
   admin: 'Administrador',
-  solicitante: 'Jefe de Área',
-  aprobador: 'Jefe Directo / Gerencia',
-  reclutador: 'Talento Humano / Reclutador',
-  direccion: 'Dirección General',
+  coordinador: 'Coordinador',
+  gestor_th: 'Gestor de Talento Humano',
+  gerente_th: 'Gerente de Talento Humano',
+  psicologa: 'Psicóloga',
+  medico_laboral: 'Médico Laboral',
+  agenda_citas: 'Agenda de Citas',
 }

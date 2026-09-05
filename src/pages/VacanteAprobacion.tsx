@@ -32,7 +32,7 @@ export default function VacanteAprobacion() {
 
   useEffect(() => { cargar() }, [id])
 
-  const puedeDecidir = perfil && ['admin', 'aprobador', 'direccion'].includes(perfil.role)
+  const puedeDecidir = perfil && (perfil.role === 'admin' || perfil.perm_aprobaciones)
   const indiceActual = aprobaciones.findIndex((a) => a.estado === 'pendiente')
 
   async function confirmarDecision() {

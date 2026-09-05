@@ -31,7 +31,7 @@ export default function Requisiciones() {
     const [{ data }, { data: recl }] = await Promise.all([
       supabase.from('vacantes').select('*, areas(nombre), requisiciones(*)')
         .in('estado', ['aprobada', 'en_requisicion']).order('created_at', { ascending: false }),
-      supabase.from('profiles').select('*').in('role', ['reclutador', 'admin']),
+      supabase.from('profiles').select('*').in('role', ['gestor_th', 'admin']),
     ])
     setVacantes((data as any) ?? [])
     setReclutadores(recl ?? [])

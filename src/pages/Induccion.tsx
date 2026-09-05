@@ -47,7 +47,7 @@ export default function Induccion() {
     setMentorId(ind?.mentor_id ?? '')
     const { data: docs } = await supabase.from('documentos_contratacion').select('*').eq('postulacion_id', idNum)
     setDocumentos(docs ?? [])
-    const { data: recl } = await supabase.from('profiles').select('*').in('role', ['reclutador', 'admin', 'aprobador', 'direccion'])
+    const { data: recl } = await supabase.from('profiles').select('*').neq('role', 'coordinador')
     setMentores(recl ?? [])
     const { data: seg } = await supabase.from('seguimientos').select('*').eq('induccion_id', ind?.id ?? 0).order('dias')
     setSeguimientos(seg ?? [])

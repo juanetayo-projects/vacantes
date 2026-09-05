@@ -37,12 +37,25 @@ Deno.serve(async (req) => {
 
   if (accion === 'crear') {
     const { email, password, nombre, role, area_id } = body
+    const codigoPerfil = role ?? 'coordinador'
+    const { data: plantilla } = await admin.from('perfiles').select('*').eq('codigo', codigoPerfil).single()
+
     const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true })
     if (error) return json(400, { error: error.message })
     const { error: perfilError } = await admin.from('profiles').insert({
-      id: data.user.id, email, nombre, role: role ?? 'solicitante', area_id: area_id ?? null,
+      id: data.user.id, email, nombre, role: codigoPerfil, area_id: area_id ?? null,
+      perfil_id: plantilla?.id ?? null,
+      ve_todas_areas: plantilla?.ve_todas_areas ?? false,
+      perm_gestion_vacantes: plantilla?.perm_gestion_vacantes ?? false,
+      perm_aprobaciones: plantilla?.perm_aprobaciones ?? false,
+      perm_reportes: plantilla?.perm_reportes ?? false,
+      perm_administracion: plantilla?.perm_administracion ?? false,
+      perm_configuracion: plantilla?.perm_configuracion ?? false,
     })
-    if (perfilError) return json(400, { error: perfilError.message })
+    if (perfilError) {
+      await admin.auth.admin.deleteUser(data.user.id)
+      return json(400, { error: perfilError.message })
+    }
     return json(200, { ok: true, id: data.user.id })
   }
 

@@ -4,15 +4,26 @@ import { supabase } from '../../lib/supabase'
 import { useAuth, ROLE_LABELS } from '../../lib/auth'
 import { PageHeader, Card, Boton, Modal, Input, Select, Badge, TableShell, TableHead, TableEmpty, filaZebra } from '../../components/ui'
 import { useAlert } from '../../lib/alerts'
-import type { Tables } from '../../lib/database.types'
+import type { Tables, TablesUpdate } from '../../lib/database.types'
 
 type Usuario = Tables<'profiles'> & { areas: { nombre: string } | null }
+type Perfil = Tables<'perfiles'>
+
+const PERMISOS_CATALOGO = [
+  { key: 've_todas_areas', label: 'Ve todas las áreas' },
+  { key: 'perm_gestion_vacantes', label: 'Gestión de Vacantes' },
+  { key: 'perm_aprobaciones', label: 'Aprobaciones' },
+  { key: 'perm_reportes', label: 'Reportes' },
+  { key: 'perm_administracion', label: 'Administración' },
+  { key: 'perm_configuracion', label: 'Configuración' },
+] as const
 
 export default function AdminUsuarios() {
   const { perfil } = useAuth()
   const { confirm, notify } = useAlert()
-  const [tab, setTab] = useState<'usuarios' | 'areas' | 'competencias'>('usuarios')
+  const [tab, setTab] = useState<'usuarios' | 'perfiles' | 'areas' | 'competencias'>('usuarios')
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
+  const [perfilesCatalogo, setPerfilesCatalogo] = useState<Perfil[]>([])
   const [areas, setAreas] = useState<Tables<'areas'>[]>([])
   const [competencias, setCompetencias] = useState<Tables<'competencias'>[]>([])
   const [modalUsuario, setModalUsuario] = useState(false)
@@ -21,15 +32,16 @@ export default function AdminUsuarios() {
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
 
-  const [form, setForm] = useState({ email: '', password: '', nombre: '', role: 'solicitante', area_id: '' })
+  const [form, setForm] = useState({ email: '', password: '', nombre: '', role: 'coordinador', area_id: '' })
 
   async function cargar() {
-    const [{ data: u }, { data: a }, { data: c }] = await Promise.all([
+    const [{ data: u }, { data: pf }, { data: a }, { data: c }] = await Promise.all([
       supabase.from('profiles').select('*, areas!profiles_area_id_fkey(nombre)').order('nombre'),
+      supabase.from('perfiles').select('*').order('id'),
       supabase.from('areas').select('*').order('nombre'),
       supabase.from('competencias').select('*').order('nombre'),
     ])
-    setUsuarios((u as any) ?? []); setAreas(a ?? []); setCompetencias(c ?? [])
+    setUsuarios((u as any) ?? []); setPerfilesCatalogo(pf ?? []); setAreas(a ?? []); setCompetencias(c ?? [])
   }
 
   useEffect(() => { cargar() }, [])
@@ -44,8 +56,8 @@ export default function AdminUsuarios() {
     setGuardando(false)
     if (error || data?.error) { setError(data?.error ?? error?.message ?? 'Error al crear usuario'); return }
     setModalUsuario(false)
-    setForm({ email: '', password: '', nombre: '', role: 'solicitante', area_id: '' })
-    notify(`Se creó el usuario ${data?.id ? '' : ''}${form.nombre || ''} correctamente.`, 'success', 'Usuario creado')
+    setForm({ email: '', password: '', nombre: '', role: 'coordinador', area_id: '' })
+    notify(`Se creó el usuario ${form.nombre || ''} correctamente.`, 'success', 'Usuario creado')
     cargar()
   }
 
@@ -83,16 +95,23 @@ export default function AdminUsuarios() {
     cargar()
   }
 
+  async function togglePermisoPerfil(p: Perfil, campo: typeof PERMISOS_CATALOGO[number]['key']) {
+    const nuevoValor = !p[campo]
+    setPerfilesCatalogo((prev) => prev.map((x) => x.id === p.id ? { ...x, [campo]: nuevoValor } : x))
+    const patch: TablesUpdate<'perfiles'> = { [campo]: nuevoValor }
+    await supabase.from('perfiles').update(patch).eq('id', p.id)
+  }
+
   if (perfil?.role !== 'admin' && !perfil?.perm_administracion) {
     return <p className="text-slate-500">No tienes permisos de administración.</p>
   }
 
   return (
     <div>
-      <PageHeader titulo="Configuración" subtitulo="Usuarios, áreas y competencias" />
+      <PageHeader titulo="Configuración" subtitulo="Usuarios, perfiles, áreas y competencias" />
 
       <div className="mb-4 flex gap-2 border-b border-slate-300 text-sm">
-        {(['usuarios', 'areas', 'competencias'] as const).map((t) => (
+        {(['usuarios', 'perfiles', 'areas', 'competencias'] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)}
             className={`px-3 py-2 font-medium capitalize ${tab === t ? 'border-b-2 border-brand text-brand' : 'text-slate-500'}`}>{t}</button>
         ))}
@@ -105,7 +124,7 @@ export default function AdminUsuarios() {
           </div>
           <TableShell>
             <TableHead>
-              <th>Nombre</th><th>Correo</th><th>Rol</th><th>Área</th><th>Estado</th><th />
+              <th>Nombre</th><th>Correo</th><th>Perfil</th><th>Área</th><th>Estado</th><th />
             </TableHead>
             <tbody>
               {usuarios.map((u, i) => (
@@ -128,6 +147,39 @@ export default function AdminUsuarios() {
                 </tr>
               ))}
               {!usuarios.length && <TableEmpty colSpan={6}>No hay usuarios registrados</TableEmpty>}
+            </tbody>
+          </TableShell>
+        </div>
+      )}
+
+      {tab === 'perfiles' && (
+        <div className="flex flex-col gap-3">
+          <p className="text-sm text-slate-500">
+            Define el nivel de acceso de cada perfil. Los cambios aplican a los usuarios nuevos y a los existentes
+            que no tengan permisos personalizados en su ficha (Perfil de Usuario).
+          </p>
+          <TableShell>
+            <TableHead>
+              <th>Perfil</th>
+              {PERMISOS_CATALOGO.map((p) => <th key={p.key}>{p.label}</th>)}
+            </TableHead>
+            <tbody>
+              {perfilesCatalogo.map((p, i) => (
+                <tr key={p.id} className={filaZebra(i)}>
+                  <td className="px-4 py-2.5">
+                    <p className="font-medium text-slate-700">{p.nombre}</p>
+                    <p className="text-xs text-slate-400">{p.descripcion}</p>
+                  </td>
+                  {PERMISOS_CATALOGO.map((perm) => (
+                    <td key={perm.key} className="px-4 py-2.5 text-center">
+                      <input type="checkbox" checked={!!(p as any)[perm.key]}
+                        onChange={() => togglePermisoPerfil(p, perm.key)}
+                        disabled={p.codigo === 'admin'} />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+              {!perfilesCatalogo.length && <TableEmpty colSpan={PERMISOS_CATALOGO.length + 1}>Sin perfiles registrados</TableEmpty>}
             </tbody>
           </TableShell>
         </div>
@@ -167,8 +219,8 @@ export default function AdminUsuarios() {
           <Input label="Nombre completo" className="sm:col-span-2" value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} />
           <Input label="Correo institucional" type="email" className="sm:col-span-2" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
           <Input label="Contraseña temporal" type="text" className="sm:col-span-2" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
-          <Select label="Rol" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
-            {Object.entries(ROLE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          <Select label="Perfil" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
+            {perfilesCatalogo.map((p) => <option key={p.codigo} value={p.codigo}>{p.nombre}</option>)}
           </Select>
           <Select label="Área" value={form.area_id} onChange={(e) => setForm({ ...form, area_id: e.target.value })}>
             <option value="">Sin asignar</option>

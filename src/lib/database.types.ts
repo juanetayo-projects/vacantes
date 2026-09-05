@@ -381,7 +381,7 @@ export type Database = {
           {
             foreignKeyName: "inducciones_postulacion_id_fkey"
             columns: ["postulacion_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "postulaciones"
             referencedColumns: ["id"]
           },
@@ -491,6 +491,51 @@ export type Database = {
           },
         ]
       }
+      perfiles: {
+        Row: {
+          activo: boolean
+          codigo: string
+          created_at: string
+          descripcion: string | null
+          id: number
+          nombre: string
+          perm_administracion: boolean
+          perm_aprobaciones: boolean
+          perm_configuracion: boolean
+          perm_gestion_vacantes: boolean
+          perm_reportes: boolean
+          ve_todas_areas: boolean
+        }
+        Insert: {
+          activo?: boolean
+          codigo: string
+          created_at?: string
+          descripcion?: string | null
+          id?: never
+          nombre: string
+          perm_administracion?: boolean
+          perm_aprobaciones?: boolean
+          perm_configuracion?: boolean
+          perm_gestion_vacantes?: boolean
+          perm_reportes?: boolean
+          ve_todas_areas?: boolean
+        }
+        Update: {
+          activo?: boolean
+          codigo?: string
+          created_at?: string
+          descripcion?: string | null
+          id?: never
+          nombre?: string
+          perm_administracion?: boolean
+          perm_aprobaciones?: boolean
+          perm_configuracion?: boolean
+          perm_gestion_vacantes?: boolean
+          perm_reportes?: boolean
+          ve_todas_areas?: boolean
+        }
+        Relationships: []
+      }
       postulaciones: {
         Row: {
           candidato_id: number
@@ -553,6 +598,7 @@ export type Database = {
           id: string
           nombre: string
           numero_documento: string | null
+          perfil_id: number | null
           perm_administracion: boolean
           perm_aprobaciones: boolean
           perm_configuracion: boolean
@@ -561,6 +607,7 @@ export type Database = {
           role: Database["public"]["Enums"]["rol_usuario"]
           telefono: string | null
           tipo_documento: string | null
+          ve_todas_areas: boolean
         }
         Insert: {
           activo?: boolean
@@ -575,6 +622,7 @@ export type Database = {
           id: string
           nombre: string
           numero_documento?: string | null
+          perfil_id?: number | null
           perm_administracion?: boolean
           perm_aprobaciones?: boolean
           perm_configuracion?: boolean
@@ -583,6 +631,7 @@ export type Database = {
           role?: Database["public"]["Enums"]["rol_usuario"]
           telefono?: string | null
           tipo_documento?: string | null
+          ve_todas_areas?: boolean
         }
         Update: {
           activo?: boolean
@@ -597,6 +646,7 @@ export type Database = {
           id?: string
           nombre?: string
           numero_documento?: string | null
+          perfil_id?: number | null
           perm_administracion?: boolean
           perm_aprobaciones?: boolean
           perm_configuracion?: boolean
@@ -605,6 +655,7 @@ export type Database = {
           role?: Database["public"]["Enums"]["rol_usuario"]
           telefono?: string | null
           tipo_documento?: string | null
+          ve_todas_areas?: boolean
         }
         Relationships: [
           {
@@ -612,6 +663,13 @@ export type Database = {
             columns: ["area_id"]
             isOneToOne: false
             referencedRelation: "areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_perfil_id_fkey"
+            columns: ["perfil_id"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
             referencedColumns: ["id"]
           },
         ]
@@ -932,6 +990,8 @@ export type Database = {
     Functions: {
       is_admin: { Args: never; Returns: boolean }
       is_staff: { Args: never; Returns: boolean }
+      mi_area_id: { Args: never; Returns: number }
+      veo_todas_areas: { Args: never; Returns: boolean }
     }
     Enums: {
       estado_aprobacion_enum:
@@ -975,10 +1035,12 @@ export type Database = {
       nivel_urgencia_enum: "bajo" | "medio" | "alto" | "critico"
       rol_usuario:
         | "admin"
-        | "solicitante"
-        | "aprobador"
-        | "reclutador"
-        | "direccion"
+        | "coordinador"
+        | "gestor_th"
+        | "gerente_th"
+        | "psicologa"
+        | "medico_laboral"
+        | "agenda_citas"
       tipo_entrevista_enum:
         | "inicial"
         | "tecnica"
@@ -1092,6 +1154,23 @@ export type Enums<
     ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
     : never
 
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never) = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
 export const Constants = {
   public: {
     Enums: {
@@ -1141,10 +1220,12 @@ export const Constants = {
       nivel_urgencia_enum: ["bajo", "medio", "alto", "critico"],
       rol_usuario: [
         "admin",
-        "solicitante",
-        "aprobador",
-        "reclutador",
-        "direccion",
+        "coordinador",
+        "gestor_th",
+        "gerente_th",
+        "psicologa",
+        "medico_laboral",
+        "agenda_citas",
       ],
       tipo_entrevista_enum: [
         "inicial",
