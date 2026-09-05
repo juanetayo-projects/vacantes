@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react'
-import { Plus, KeyRound, Trash2 } from 'lucide-react'
+import { Plus, KeyRound, Trash2, Pencil } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth, ROLE_LABELS } from '../../lib/auth'
-import { PageHeader, Card, Boton, Modal, Input, Select, Badge, TableShell, TableHead, TableEmpty, filaZebra } from '../../components/ui'
+import { PageHeader, Boton, Modal, Input, Select, Badge, TableShell, TableHead, TableEmpty, filaZebra } from '../../components/ui'
 import { useAlert } from '../../lib/alerts'
 import type { Tables, TablesUpdate } from '../../lib/database.types'
 
 type Usuario = Tables<'profiles'> & { areas: { nombre: string } | null }
 type Perfil = Tables<'perfiles'>
+type Area = Tables<'areas'>
+type Competencia = Tables<'competencias'>
 
 const PERMISOS_CATALOGO = [
   { key: 've_todas_areas', label: 'Ve todas las áreas' },
@@ -24,15 +26,23 @@ export default function AdminUsuarios() {
   const [tab, setTab] = useState<'usuarios' | 'perfiles' | 'areas' | 'competencias'>('usuarios')
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
   const [perfilesCatalogo, setPerfilesCatalogo] = useState<Perfil[]>([])
-  const [areas, setAreas] = useState<Tables<'areas'>[]>([])
-  const [competencias, setCompetencias] = useState<Tables<'competencias'>[]>([])
+  const [areas, setAreas] = useState<Area[]>([])
+  const [competencias, setCompetencias] = useState<Competencia[]>([])
   const [modalUsuario, setModalUsuario] = useState(false)
+  const [modalEditar, setModalEditar] = useState<Usuario | null>(null)
   const [modalReset, setModalReset] = useState<Usuario | null>(null)
+  const [modalArea, setModalArea] = useState<Area | 'nueva' | null>(null)
+  const [modalCompetencia, setModalCompetencia] = useState<Competencia | 'nueva' | null>(null)
   const [nuevaPass, setNuevaPass] = useState('')
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
 
   const [form, setForm] = useState({ email: '', password: '', nombre: '', role: 'coordinador', area_id: '' })
+  const [formEditar, setFormEditar] = useState({ nombre: '', role: 'coordinador', area_id: '' })
+  const [formArea, setFormArea] = useState({ nombre: '', codigo: '', activo: true })
+  const [formCompetencia, setFormCompetencia] = useState({ nombre: '', tipo: 'tecnica', peso_defecto: '' })
+
+  const puedeAdministrar = perfil?.role === 'admin' || !!perfil?.perm_configuracion
 
   async function cargar() {
     const [{ data: u }, { data: pf }, { data: a }, { data: c }] = await Promise.all([
@@ -58,6 +68,37 @@ export default function AdminUsuarios() {
     setModalUsuario(false)
     setForm({ email: '', password: '', nombre: '', role: 'coordinador', area_id: '' })
     notify(`Se creó el usuario ${form.nombre || ''} correctamente.`, 'success', 'Usuario creado')
+    cargar()
+  }
+
+  function abrirEditar(u: Usuario) {
+    setFormEditar({ nombre: u.nombre, role: u.role, area_id: u.area_id ? String(u.area_id) : '' })
+    setModalEditar(u)
+  }
+
+  async function guardarEdicion() {
+    if (!modalEditar) return
+    setGuardando(true)
+    const plantilla = perfilesCatalogo.find((p) => p.codigo === formEditar.role)
+    const cambioPerfil = formEditar.role !== modalEditar.role
+    const { error } = await supabase.from('profiles').update({
+      nombre: formEditar.nombre,
+      area_id: formEditar.area_id ? Number(formEditar.area_id) : null,
+      role: formEditar.role as Usuario['role'],
+      ...(cambioPerfil && plantilla ? {
+        perfil_id: plantilla.id,
+        ve_todas_areas: plantilla.ve_todas_areas,
+        perm_gestion_vacantes: plantilla.perm_gestion_vacantes,
+        perm_aprobaciones: plantilla.perm_aprobaciones,
+        perm_reportes: plantilla.perm_reportes,
+        perm_administracion: plantilla.perm_administracion,
+        perm_configuracion: plantilla.perm_configuracion,
+      } : {}),
+    }).eq('id', modalEditar.id)
+    setGuardando(false)
+    if (error) { notify('No se pudo guardar el usuario.', 'error'); return }
+    notify('Usuario actualizado correctamente.', 'success')
+    setModalEditar(null)
     cargar()
   }
 
@@ -102,7 +143,64 @@ export default function AdminUsuarios() {
     await supabase.from('perfiles').update(patch).eq('id', p.id)
   }
 
-  if (perfil?.role !== 'admin' && !perfil?.perm_administracion) {
+  // --- Áreas: CRUD ---
+  function abrirArea(a: Area | 'nueva') {
+    setFormArea(a === 'nueva' ? { nombre: '', codigo: '', activo: true } : { nombre: a.nombre, codigo: a.codigo, activo: a.activo })
+    setModalArea(a)
+  }
+
+  async function guardarArea() {
+    setGuardando(true)
+    const error = modalArea === 'nueva'
+      ? (await supabase.from('areas').insert(formArea)).error
+      : (await supabase.from('areas').update(formArea).eq('id', (modalArea as Area).id)).error
+    setGuardando(false)
+    if (error) { notify('No se pudo guardar el área.', 'error'); return }
+    notify('Área guardada correctamente.', 'success')
+    setModalArea(null)
+    cargar()
+  }
+
+  async function eliminarArea(a: Area) {
+    const ok = await confirm(`¿Eliminar el área "${a.nombre}"? Si tiene vacantes o usuarios asociados, la operación fallará.`, {
+      titulo: 'Eliminar área', variante: 'peligro', textoConfirmar: 'Eliminar',
+    })
+    if (!ok) return
+    const { error } = await supabase.from('areas').delete().eq('id', a.id)
+    if (error) notify('No se pudo eliminar: probablemente tiene vacantes o usuarios asociados. Puedes marcarla como Inactiva en su lugar.', 'error')
+    else { notify(`Se eliminó el área ${a.nombre}.`, 'success'); cargar() }
+  }
+
+  // --- Competencias: CRUD ---
+  function abrirCompetencia(c: Competencia | 'nueva') {
+    setFormCompetencia(c === 'nueva' ? { nombre: '', tipo: 'tecnica', peso_defecto: '' } : { nombre: c.nombre, tipo: c.tipo, peso_defecto: String(c.peso_defecto ?? '') })
+    setModalCompetencia(c)
+  }
+
+  async function guardarCompetencia() {
+    setGuardando(true)
+    const payload = { nombre: formCompetencia.nombre, tipo: formCompetencia.tipo, peso_defecto: formCompetencia.peso_defecto ? Number(formCompetencia.peso_defecto) : 0 }
+    const error = modalCompetencia === 'nueva'
+      ? (await supabase.from('competencias').insert(payload)).error
+      : (await supabase.from('competencias').update(payload).eq('id', (modalCompetencia as Competencia).id)).error
+    setGuardando(false)
+    if (error) { notify('No se pudo guardar la competencia.', 'error'); return }
+    notify('Competencia guardada correctamente.', 'success')
+    setModalCompetencia(null)
+    cargar()
+  }
+
+  async function eliminarCompetencia(c: Competencia) {
+    const ok = await confirm(`¿Eliminar la competencia "${c.nombre}"?`, {
+      titulo: 'Eliminar competencia', variante: 'peligro', textoConfirmar: 'Eliminar',
+    })
+    if (!ok) return
+    const { error } = await supabase.from('competencias').delete().eq('id', c.id)
+    if (error) notify('No se pudo eliminar: probablemente está en uso en alguna vacante o evaluación.', 'error')
+    else { notify(`Se eliminó la competencia ${c.nombre}.`, 'success'); cargar() }
+  }
+
+  if (!puedeAdministrar) {
     return <p className="text-slate-500">No tienes permisos de administración.</p>
   }
 
@@ -140,6 +238,7 @@ export default function AdminUsuarios() {
                   </td>
                   <td className="px-4 py-2.5 text-right">
                     <div className="flex justify-end gap-2">
+                      <button title="Editar" onClick={() => abrirEditar(u)} className="text-slate-400 hover:text-brand-light"><Pencil size={15} /></button>
                       <button title="Restablecer contraseña" onClick={() => setModalReset(u)} className="text-slate-400 hover:text-brand-light"><KeyRound size={15} /></button>
                       <button title="Eliminar" onClick={() => eliminarUsuario(u)} className="text-slate-400 hover:text-rose-500"><Trash2 size={15} /></button>
                     </div>
@@ -186,32 +285,54 @@ export default function AdminUsuarios() {
       )}
 
       {tab === 'areas' && (
-        <TableShell>
-          <TableHead><th>Nombre</th><th>Código</th><th>Estado</th></TableHead>
-          <tbody>
-            {areas.map((a, i) => (
-              <tr key={a.id} className={filaZebra(i)}>
-                <td className="px-4 py-2.5">{a.nombre}</td><td className="px-4 py-2.5 text-slate-500">{a.codigo}</td>
-                <td className="px-4 py-2.5"><Badge texto={a.activo ? 'Activo' : 'Inactivo'} valor={a.activo ? 'aprobado' : 'rechazado'} /></td>
-              </tr>
-            ))}
-            {!areas.length && <TableEmpty colSpan={3}>Sin áreas registradas</TableEmpty>}
-          </tbody>
-        </TableShell>
+        <div>
+          <div className="mb-3 flex justify-end">
+            <Boton onClick={() => abrirArea('nueva')}><Plus size={15} className="mr-1 inline" />Nueva Área</Boton>
+          </div>
+          <TableShell>
+            <TableHead><th>Nombre</th><th>Código</th><th>Estado</th><th /></TableHead>
+            <tbody>
+              {areas.map((a, i) => (
+                <tr key={a.id} className={filaZebra(i)}>
+                  <td className="px-4 py-2.5">{a.nombre}</td><td className="px-4 py-2.5 text-slate-500">{a.codigo}</td>
+                  <td className="px-4 py-2.5"><Badge texto={a.activo ? 'Activo' : 'Inactivo'} valor={a.activo ? 'aprobado' : 'rechazado'} /></td>
+                  <td className="px-4 py-2.5 text-right">
+                    <div className="flex justify-end gap-2">
+                      <button title="Editar" onClick={() => abrirArea(a)} className="text-slate-400 hover:text-brand-light"><Pencil size={15} /></button>
+                      <button title="Eliminar" onClick={() => eliminarArea(a)} className="text-slate-400 hover:text-rose-500"><Trash2 size={15} /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {!areas.length && <TableEmpty colSpan={4}>Sin áreas registradas</TableEmpty>}
+            </tbody>
+          </TableShell>
+        </div>
       )}
 
       {tab === 'competencias' && (
-        <TableShell>
-          <TableHead><th>Nombre</th><th>Tipo</th><th>Peso Defecto</th></TableHead>
-          <tbody>
-            {competencias.map((c, i) => (
-              <tr key={c.id} className={filaZebra(i)}>
-                <td className="px-4 py-2.5">{c.nombre}</td><td className="px-4 py-2.5 capitalize text-slate-500">{c.tipo}</td><td className="px-4 py-2.5 text-slate-500">{c.peso_defecto}%</td>
-              </tr>
-            ))}
-            {!competencias.length && <TableEmpty colSpan={3}>Sin competencias registradas</TableEmpty>}
-          </tbody>
-        </TableShell>
+        <div>
+          <div className="mb-3 flex justify-end">
+            <Boton onClick={() => abrirCompetencia('nueva')}><Plus size={15} className="mr-1 inline" />Nueva Competencia</Boton>
+          </div>
+          <TableShell>
+            <TableHead><th>Nombre</th><th>Tipo</th><th>Peso Defecto</th><th /></TableHead>
+            <tbody>
+              {competencias.map((c, i) => (
+                <tr key={c.id} className={filaZebra(i)}>
+                  <td className="px-4 py-2.5">{c.nombre}</td><td className="px-4 py-2.5 capitalize text-slate-500">{c.tipo}</td><td className="px-4 py-2.5 text-slate-500">{c.peso_defecto}%</td>
+                  <td className="px-4 py-2.5 text-right">
+                    <div className="flex justify-end gap-2">
+                      <button title="Editar" onClick={() => abrirCompetencia(c)} className="text-slate-400 hover:text-brand-light"><Pencil size={15} /></button>
+                      <button title="Eliminar" onClick={() => eliminarCompetencia(c)} className="text-slate-400 hover:text-rose-500"><Trash2 size={15} /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {!competencias.length && <TableEmpty colSpan={4}>Sin competencias registradas</TableEmpty>}
+            </tbody>
+          </TableShell>
+        </div>
       )}
 
       <Modal open={modalUsuario} onClose={() => setModalUsuario(false)} titulo="Nuevo Usuario" ancho="max-w-lg">
@@ -234,12 +355,62 @@ export default function AdminUsuarios() {
         </div>
       </Modal>
 
+      <Modal open={!!modalEditar} onClose={() => setModalEditar(null)} titulo={`Editar Usuario · ${modalEditar?.nombre}`} ancho="max-w-lg">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Input label="Nombre completo" className="sm:col-span-2" value={formEditar.nombre}
+            onChange={(e) => setFormEditar({ ...formEditar, nombre: e.target.value })} />
+          <Input label="Correo institucional" className="sm:col-span-2" value={modalEditar?.email ?? ''} disabled />
+          <Select label="Perfil" value={formEditar.role} onChange={(e) => setFormEditar({ ...formEditar, role: e.target.value })}>
+            {perfilesCatalogo.map((p) => <option key={p.codigo} value={p.codigo}>{p.nombre}</option>)}
+          </Select>
+          <Select label="Área" value={formEditar.area_id} onChange={(e) => setFormEditar({ ...formEditar, area_id: e.target.value })}>
+            <option value="">Sin asignar</option>
+            {areas.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
+          </Select>
+        </div>
+        <div className="mt-4 flex justify-end gap-2 border-t border-slate-200 pt-4">
+          <Boton variante="secundario" onClick={() => setModalEditar(null)}>Cancelar</Boton>
+          <Boton disabled={guardando} onClick={guardarEdicion}>{guardando ? 'Guardando…' : 'Guardar Cambios'}</Boton>
+        </div>
+      </Modal>
+
       <Modal open={!!modalReset} onClose={() => setModalReset(null)} titulo={`Restablecer contraseña · ${modalReset?.nombre}`} ancho="max-w-sm">
         <div className="flex flex-col gap-3">
           <Input label="Nueva contraseña" value={nuevaPass} onChange={(e) => setNuevaPass(e.target.value)} />
           <div className="flex justify-end gap-2">
             <Boton variante="secundario" onClick={() => setModalReset(null)}>Cancelar</Boton>
             <Boton disabled={guardando || !nuevaPass} onClick={resetPassword}>{guardando ? 'Guardando…' : 'Restablecer'}</Boton>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={!!modalArea} onClose={() => setModalArea(null)} titulo={modalArea === 'nueva' ? 'Nueva Área' : `Editar Área · ${(modalArea as Area)?.nombre}`} ancho="max-w-sm">
+        <div className="flex flex-col gap-3">
+          <Input label="Nombre" value={formArea.nombre} onChange={(e) => setFormArea({ ...formArea, nombre: e.target.value })} />
+          <Input label="Código" value={formArea.codigo} onChange={(e) => setFormArea({ ...formArea, codigo: e.target.value })} />
+          <label className="flex items-center gap-2 text-sm text-slate-600">
+            <input type="checkbox" checked={formArea.activo} onChange={(e) => setFormArea({ ...formArea, activo: e.target.checked })} />
+            Activa
+          </label>
+          <div className="flex justify-end gap-2">
+            <Boton variante="secundario" onClick={() => setModalArea(null)}>Cancelar</Boton>
+            <Boton disabled={guardando} onClick={guardarArea}>{guardando ? 'Guardando…' : 'Guardar'}</Boton>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={!!modalCompetencia} onClose={() => setModalCompetencia(null)} titulo={modalCompetencia === 'nueva' ? 'Nueva Competencia' : `Editar Competencia · ${(modalCompetencia as Competencia)?.nombre}`} ancho="max-w-sm">
+        <div className="flex flex-col gap-3">
+          <Input label="Nombre" value={formCompetencia.nombre} onChange={(e) => setFormCompetencia({ ...formCompetencia, nombre: e.target.value })} />
+          <Select label="Tipo" value={formCompetencia.tipo} onChange={(e) => setFormCompetencia({ ...formCompetencia, tipo: e.target.value })}>
+            <option value="tecnica">Técnica</option>
+            <option value="conductual">Conductual</option>
+          </Select>
+          <Input label="Peso por defecto (%)" type="number" value={formCompetencia.peso_defecto}
+            onChange={(e) => setFormCompetencia({ ...formCompetencia, peso_defecto: e.target.value })} />
+          <div className="flex justify-end gap-2">
+            <Boton variante="secundario" onClick={() => setModalCompetencia(null)}>Cancelar</Boton>
+            <Boton disabled={guardando} onClick={guardarCompetencia}>{guardando ? 'Guardando…' : 'Guardar'}</Boton>
           </div>
         </div>
       </Modal>
