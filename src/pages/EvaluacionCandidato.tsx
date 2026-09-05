@@ -81,9 +81,14 @@ export default function EvaluacionCandidato() {
       { titulo: 'Confirmar decisión', variante: estado === 'seleccionado' ? 'primario' : 'peligro', textoConfirmar: estado === 'seleccionado' ? 'Seleccionar' : 'No seleccionar' }
     )
     if (!ok) return
-    await supabase.from('postulaciones').update({ estado, updated_at: new Date().toISOString() }).eq('id', postulacion.id)
+    const esDescarte = estado !== 'seleccionado'
+    await supabase.from('postulaciones').update({
+      estado: esDescarte ? 'descartado' : estado,
+      motivo_descarte: esDescarte ? 'no_cumple_entrevista' : null,
+      updated_at: new Date().toISOString(),
+    }).eq('id', postulacion.id)
     if (estado === 'seleccionado') navigate(`/postulaciones/${postulacion.id}/contratacion`)
-    else { notify('El candidato fue marcado como no seleccionado.', 'info'); cargar() }
+    else { notify('El candidato fue descartado del proceso.', 'info'); cargar() }
   }
 
   async function agregarEntrevista() {

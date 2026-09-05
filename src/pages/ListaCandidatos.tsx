@@ -1,13 +1,19 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Megaphone } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-import { PageHeader, Badge, TableShell, TableHead, TableEmpty, filaZebra } from '../components/ui'
+import { useAuth } from '../lib/auth'
+import { PageHeader, Card, Boton, Badge, TableShell, TableHead, TableEmpty, filaZebra } from '../components/ui'
 import { ESTADO_VACANTE_LABELS, ESTADO_POSTULACION_LABELS, formatoFecha } from '../lib/data'
 import type { Tables } from '../lib/database.types'
 
 type Modo = 'candidatos' | 'evaluaciones' | 'contrataciones' | 'induccion'
 type VacanteFila = Tables<'vacantes'> & { areas: { nombre: string } | null }
 type PostulacionFila = Tables<'postulaciones'> & { candidatos: Tables<'candidatos'>; vacantes: Tables<'vacantes'> }
+type Convocatoria = Tables<'convocatorias_pendientes'> & {
+  vacantes: { cargo: string; codigo: string } | null
+  profiles: { nombre: string } | null
+}
 
 const CONFIG: Record<Modo, { titulo: string; subtitulo: string }> = {
   candidatos: { titulo: 'Candidatos por Vacante', subtitulo: 'Selecciona una vacante para ver su tablero de candidatos' },
@@ -17,9 +23,29 @@ const CONFIG: Record<Modo, { titulo: string; subtitulo: string }> = {
 }
 
 export default function ListaCandidatos({ modo = 'candidatos' }: { modo?: Modo }) {
+  const { perfil } = useAuth()
   const [vacantes, setVacantes] = useState<VacanteFila[]>([])
   const [postulaciones, setPostulaciones] = useState<PostulacionFila[]>([])
+  const [convocatorias, setConvocatorias] = useState<Convocatoria[]>([])
   const [cargando, setCargando] = useState(true)
+
+  async function cargarConvocatorias() {
+    const { data } = await supabase.from('convocatorias_pendientes')
+      .select('*, vacantes(cargo, codigo), profiles!convocatorias_pendientes_abierta_por_fkey(nombre)')
+      .neq('estado', 'cerrada').order('created_at')
+    setConvocatorias((data as any) ?? [])
+  }
+
+  async function tomarConvocatoria(c: Convocatoria) {
+    if (!perfil) return
+    await supabase.from('convocatorias_pendientes').update({ estado: 'en_gestion', asignada_a: perfil.id }).eq('id', c.id)
+    cargarConvocatorias()
+  }
+
+  async function cerrarConvocatoria(c: Convocatoria) {
+    await supabase.from('convocatorias_pendientes').update({ estado: 'cerrada' }).eq('id', c.id)
+    cargarConvocatorias()
+  }
 
   useEffect(() => {
     async function cargar() {
@@ -28,6 +54,7 @@ export default function ListaCandidatos({ modo = 'candidatos' }: { modo?: Modo }
         const { data } = await supabase.from('vacantes').select('*, areas(nombre)')
           .in('estado', ['publicada', 'en_evaluacion']).order('created_at', { ascending: false })
         setVacantes((data as any) ?? [])
+        cargarConvocatorias()
       } else {
         const estados: Tables<'postulaciones'>['estado'][] = modo === 'evaluaciones' ? ['entrevista', 'finalista']
           : modo === 'contrataciones' ? ['seleccionado'] : ['seleccionado']
@@ -45,6 +72,33 @@ export default function ListaCandidatos({ modo = 'candidatos' }: { modo?: Modo }
   return (
     <div>
       <PageHeader titulo={titulo} subtitulo={subtitulo} />
+
+      {modo === 'candidatos' && !!convocatorias.length && (
+        <Card titulo="Convocatorias Externas Pendientes" className="mb-4">
+          <div className="flex flex-col gap-2">
+            {convocatorias.map((c) => (
+              <div key={c.id} className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2">
+                <div className="flex items-center gap-2">
+                  <Megaphone size={15} className="text-amber-500" />
+                  <div>
+                    <p className="text-sm font-medium text-slate-700">{c.vacantes?.cargo} · {c.vacantes?.codigo}</p>
+                    <p className="text-xs text-slate-400">
+                      Abierta por {c.profiles?.nombre} · {formatoFecha(c.created_at)}
+                      {c.estado === 'en_gestion' && ' · En gestión'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  {c.estado === 'pendiente' && (
+                    <Boton className="!px-3 !py-1.5 text-xs" onClick={() => tomarConvocatoria(c)}>Tomar</Boton>
+                  )}
+                  <Boton variante="secundario" className="!px-3 !py-1.5 text-xs" onClick={() => cerrarConvocatoria(c)}>Cerrar</Boton>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {modo === 'candidatos' ? (
         <TableShell>

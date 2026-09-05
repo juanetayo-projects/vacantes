@@ -160,6 +160,55 @@ export type Database = {
         }
         Relationships: []
       }
+      convocatorias_pendientes: {
+        Row: {
+          abierta_por: string
+          asignada_a: string | null
+          created_at: string
+          estado: string
+          id: number
+          vacante_id: number
+        }
+        Insert: {
+          abierta_por: string
+          asignada_a?: string | null
+          created_at?: string
+          estado?: string
+          id?: never
+          vacante_id: number
+        }
+        Update: {
+          abierta_por?: string
+          asignada_a?: string | null
+          created_at?: string
+          estado?: string
+          id?: never
+          vacante_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "convocatorias_pendientes_abierta_por_fkey"
+            columns: ["abierta_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "convocatorias_pendientes_asignada_a_fkey"
+            columns: ["asignada_a"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "convocatorias_pendientes_vacante_id_fkey"
+            columns: ["vacante_id"]
+            isOneToOne: false
+            referencedRelation: "vacantes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documentos_contratacion: {
         Row: {
           created_at: string
@@ -541,30 +590,48 @@ export type Database = {
       postulaciones: {
         Row: {
           candidato_id: number
+          contactado_por: string | null
+          contacto_efectivo: boolean | null
           estado: Database["public"]["Enums"]["estado_postulacion_enum"]
+          fecha_contacto: string | null
           fecha_postulacion: string
           id: number
+          interesado: boolean | null
+          motivo_descarte: string | null
           notas: string | null
+          observaciones_contacto: string | null
           puntaje_ajuste: number | null
           updated_at: string
           vacante_id: number
         }
         Insert: {
           candidato_id: number
+          contactado_por?: string | null
+          contacto_efectivo?: boolean | null
           estado?: Database["public"]["Enums"]["estado_postulacion_enum"]
+          fecha_contacto?: string | null
           fecha_postulacion?: string
           id?: never
+          interesado?: boolean | null
+          motivo_descarte?: string | null
           notas?: string | null
+          observaciones_contacto?: string | null
           puntaje_ajuste?: number | null
           updated_at?: string
           vacante_id: number
         }
         Update: {
           candidato_id?: number
+          contactado_por?: string | null
+          contacto_efectivo?: boolean | null
           estado?: Database["public"]["Enums"]["estado_postulacion_enum"]
+          fecha_contacto?: string | null
           fecha_postulacion?: string
           id?: never
+          interesado?: boolean | null
+          motivo_descarte?: string | null
           notas?: string | null
+          observaciones_contacto?: string | null
           puntaje_ajuste?: number | null
           updated_at?: string
           vacante_id?: number
@@ -575,6 +642,13 @@ export type Database = {
             columns: ["candidato_id"]
             isOneToOne: false
             referencedRelation: "candidatos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "postulaciones_contactado_por_fkey"
+            columns: ["contactado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {

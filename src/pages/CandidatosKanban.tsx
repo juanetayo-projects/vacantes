@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { Plus, ArrowRight, ChevronRight } from 'lucide-react'
+import { Plus, ArrowRight, ChevronRight, Search, PhoneCall } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-import { PageHeader, Card, Modal, Boton, Input, Select } from '../components/ui'
+import { useAuth } from '../lib/auth'
+import { PageHeader, Card, Modal, Boton, Input, Select, Textarea } from '../components/ui'
 import { useAlert } from '../lib/alerts'
 import type { Tables } from '../lib/database.types'
 
 type Postulacion = Tables<'postulaciones'> & { candidatos: Tables<'candidatos'> }
+type Candidato = Tables<'candidatos'>
 
 const COLUMNAS: { estado: Postulacion['estado']; titulo: string }[] = [
   { estado: 'postulado', titulo: 'Postulados' },
@@ -25,7 +27,8 @@ const SIGUIENTE: Record<string, Postulacion['estado']> = {
 export default function CandidatosKanban() {
   const { id } = useParams()
   const idNum = Number(id)
-  const { confirm } = useAlert()
+  const { perfil } = useAuth()
+  const { confirm, notify } = useAlert()
   const [vacante, setVacante] = useState<Tables<'vacantes'> | null>(null)
   const [postulaciones, setPostulaciones] = useState<Postulacion[]>([])
   const [modalNuevo, setModalNuevo] = useState(false)
@@ -34,6 +37,22 @@ export default function CandidatosKanban() {
   const [telefono, setTelefono] = useState('')
   const [fuente, setFuente] = useState<Tables<'candidatos'>['fuente']>('portal_empleo')
   const [guardando, setGuardando] = useState(false)
+
+  // Banco de HV
+  const [modalBanco, setModalBanco] = useState(false)
+  const [busqueda, setBusqueda] = useState('')
+  const [buscando, setBuscando] = useState(false)
+  const [resultados, setResultados] = useState<Candidato[] | null>(null)
+
+  // Verificación de llamada
+  const [modalContacto, setModalContacto] = useState<Postulacion | null>(null)
+  const [contactoEfectivo, setContactoEfectivo] = useState(true)
+  const [interesado, setInteresado] = useState(true)
+  const [observacionesContacto, setObservacionesContacto] = useState('')
+
+  // Descarte con motivo
+  const [modalDescarte, setModalDescarte] = useState<Postulacion | null>(null)
+  const [motivoDescarte, setMotivoDescarte] = useState('')
 
   async function cargar() {
     const [{ data: v }, { data: post }] = await Promise.all([
@@ -53,12 +72,17 @@ export default function CandidatosKanban() {
     cargar()
   }
 
-  async function descartar(p: Postulacion) {
-    const ok = await confirm(`¿Descartar a ${p.candidatos.nombre} del proceso de selección?`, {
-      titulo: 'Descartar candidato', variante: 'peligro', textoConfirmar: 'Descartar',
-    })
-    if (!ok) return
-    await supabase.from('postulaciones').update({ estado: 'descartado' }).eq('id', p.id)
+  function abrirDescarte(p: Postulacion) {
+    setMotivoDescarte('')
+    setModalDescarte(p)
+  }
+
+  async function confirmarDescarte() {
+    if (!modalDescarte) return
+    await supabase.from('postulaciones').update({
+      estado: 'descartado', motivo_descarte: motivoDescarte || 'manual',
+    }).eq('id', modalDescarte.id)
+    setModalDescarte(null)
     cargar()
   }
 
@@ -75,10 +99,77 @@ export default function CandidatosKanban() {
     cargar()
   }
 
+  // --- Banco de HV ---
+  function abrirBanco() {
+    setBusqueda(''); setResultados(null)
+    setModalBanco(true)
+  }
+
+  async function buscarEnBanco() {
+    if (!busqueda.trim()) return
+    setBuscando(true)
+    const idsYaEnVacante = postulaciones.map((p) => p.candidato_id)
+    let q = supabase.from('candidatos').select('*')
+      .or(`nombre.ilike.%${busqueda}%,formacion.ilike.%${busqueda}%`)
+      .limit(20)
+    if (idsYaEnVacante.length) q = q.not('id', 'in', `(${idsYaEnVacante.join(',')})`)
+    const { data } = await q
+    setResultados(data ?? [])
+    setBuscando(false)
+  }
+
+  async function marcarCoincidencia(c: Candidato) {
+    await supabase.from('postulaciones').insert({ vacante_id: idNum, candidato_id: c.id, estado: 'postulado' })
+    notify(`${c.nombre} se agregó a Postulados.`, 'success')
+    setResultados((prev) => (prev ?? []).filter((x) => x.id !== c.id))
+    cargar()
+  }
+
+  async function abrirConvocatoria() {
+    if (!perfil) return
+    const ok = await confirm(
+      'Se creará un pendiente en la bandeja de convocatorias para que otro miembro de Talento Humano busque candidatos por fuera de la app (redes, avisos, referidos).',
+      { titulo: 'Abrir convocatoria externa', textoConfirmar: 'Abrir convocatoria' },
+    )
+    if (!ok) return
+    await supabase.from('convocatorias_pendientes').insert({ vacante_id: idNum, abierta_por: perfil.id })
+    notify('Se abrió la convocatoria en la bandeja de Talento Humano.', 'success')
+    setModalBanco(false)
+  }
+
+  // --- Verificación de llamada ---
+  function abrirContacto(p: Postulacion) {
+    setContactoEfectivo(true); setInteresado(true); setObservacionesContacto('')
+    setModalContacto(p)
+  }
+
+  async function guardarContacto() {
+    if (!modalContacto || !perfil) return
+    const nuevoEstado = !contactoEfectivo || !interesado ? 'descartado' : 'preseleccionado'
+    const motivo = !contactoEfectivo ? 'no_contactado' : !interesado ? 'no_interesado' : null
+    await supabase.from('postulaciones').update({
+      fecha_contacto: new Date().toISOString(),
+      contacto_efectivo: contactoEfectivo,
+      interesado: contactoEfectivo ? interesado : null,
+      observaciones_contacto: observacionesContacto || null,
+      contactado_por: perfil.id,
+      estado: nuevoEstado,
+      motivo_descarte: motivo,
+      updated_at: new Date().toISOString(),
+    }).eq('id', modalContacto.id)
+    setModalContacto(null)
+    cargar()
+  }
+
   return (
     <div>
       <PageHeader titulo={`Candidatos · ${vacante?.cargo ?? ''}`} subtitulo={vacante?.codigo}
-        acciones={<Boton onClick={() => setModalNuevo(true)}><Plus size={16} className="mr-1 inline" />Agregar Candidato</Boton>} />
+        acciones={
+          <div className="flex gap-2">
+            <Boton variante="secundario" onClick={abrirBanco}><Search size={16} className="mr-1 inline" />Banco de HV</Boton>
+            <Boton onClick={() => setModalNuevo(true)}><Plus size={16} className="mr-1 inline" />Agregar Candidato</Boton>
+          </div>
+        } />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {COLUMNAS.map((col) => {
@@ -101,8 +192,12 @@ export default function CandidatosKanban() {
                         Ver más <ChevronRight size={12} />
                       </Link>
                       <div className="flex gap-1">
-                        <button onClick={() => descartar(p)} className="text-[11px] text-red-500 hover:underline">Descartar</button>
-                        {SIGUIENTE[p.estado] && (
+                        <button onClick={() => abrirDescarte(p)} className="text-[11px] text-red-500 hover:underline">Descartar</button>
+                        {col.estado === 'postulado' ? (
+                          <button onClick={() => abrirContacto(p)} className="flex items-center gap-0.5 text-[11px] font-medium text-brand-light hover:underline">
+                            <PhoneCall size={11} /> Registrar Contacto
+                          </button>
+                        ) : SIGUIENTE[p.estado] && (
                           <button onClick={() => avanzar(p)} className="flex items-center gap-0.5 text-[11px] font-medium text-emerald-600 hover:underline">
                             Avanzar <ArrowRight size={11} />
                           </button>
@@ -133,6 +228,74 @@ export default function CandidatosKanban() {
           <div className="flex justify-end gap-2">
             <Boton variante="secundario" onClick={() => setModalNuevo(false)}>Cancelar</Boton>
             <Boton disabled={guardando} onClick={crearCandidato}>{guardando ? 'Guardando…' : 'Agregar'}</Boton>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={modalBanco} onClose={() => setModalBanco(false)} titulo="Banco de Hojas de Vida" ancho="max-w-lg">
+        <div className="flex flex-col gap-3">
+          <p className="text-xs text-slate-500">Busca en el banco de candidatos existentes por nombre o formación.</p>
+          <div className="flex gap-2">
+            <input value={busqueda} onChange={(e) => setBusqueda(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), buscarEnBanco())}
+              placeholder="Ej: enfermería, Juan Pérez…"
+              className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            <Boton onClick={buscarEnBanco} disabled={buscando}>{buscando ? 'Buscando…' : 'Buscar'}</Boton>
+          </div>
+          {resultados !== null && (
+            <div className="max-h-72 overflow-y-auto rounded-lg border border-slate-200">
+              {resultados.map((c) => (
+                <div key={c.id} className="flex items-center justify-between border-b border-slate-100 px-3 py-2 last:border-0">
+                  <div>
+                    <p className="text-sm font-medium text-slate-700">{c.nombre}</p>
+                    <p className="text-xs text-slate-400">{c.formacion ?? c.email ?? '-'}</p>
+                  </div>
+                  <Boton className="!px-2 !py-1 text-xs" onClick={() => marcarCoincidencia(c)}>+ Agregar</Boton>
+                </div>
+              ))}
+              {!resultados.length && (
+                <div className="p-4 text-center">
+                  <p className="mb-2 text-sm text-slate-500">No hay HV aptas en el banco.</p>
+                  <Boton variante="secundario" onClick={abrirConvocatoria}>Abrir Convocatoria Externa</Boton>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </Modal>
+
+      <Modal open={!!modalContacto} onClose={() => setModalContacto(null)} titulo={`Registrar contacto · ${modalContacto?.candidatos.nombre}`} ancho="max-w-sm">
+        <div className="flex flex-col gap-3">
+          <label className="flex items-center gap-2 text-sm text-slate-600">
+            <input type="checkbox" checked={contactoEfectivo} onChange={(e) => setContactoEfectivo(e.target.checked)} />
+            Contacto efectivo
+          </label>
+          {contactoEfectivo && (
+            <label className="flex items-center gap-2 text-sm text-slate-600">
+              <input type="checkbox" checked={interesado} onChange={(e) => setInteresado(e.target.checked)} />
+              El candidato está interesado
+            </label>
+          )}
+          <Textarea label="Observaciones" rows={3} value={observacionesContacto} onChange={(e) => setObservacionesContacto(e.target.value)} />
+          {(!contactoEfectivo || !interesado) && (
+            <p className="rounded-lg bg-amber-50 p-2 text-xs text-amber-700">
+              El candidato quedará descartado de esta vacante, pero permanece en el banco de HV para futuras convocatorias.
+            </p>
+          )}
+          <div className="flex justify-end gap-2">
+            <Boton variante="secundario" onClick={() => setModalContacto(null)}>Cancelar</Boton>
+            <Boton onClick={guardarContacto}>Guardar</Boton>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={!!modalDescarte} onClose={() => setModalDescarte(null)} titulo={`Descartar a ${modalDescarte?.candidatos.nombre}`} ancho="max-w-sm">
+        <div className="flex flex-col gap-3">
+          <Textarea label="Motivo del descarte" rows={3} value={motivoDescarte} onChange={(e) => setMotivoDescarte(e.target.value)}
+            placeholder="Ej: no cumple el perfil requerido" />
+          <div className="flex justify-end gap-2">
+            <Boton variante="secundario" onClick={() => setModalDescarte(null)}>Cancelar</Boton>
+            <Boton variante="peligro" onClick={confirmarDescarte}>Descartar</Boton>
           </div>
         </div>
       </Modal>
