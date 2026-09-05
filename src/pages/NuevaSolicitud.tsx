@@ -204,7 +204,7 @@ export default function NuevaSolicitud() {
                   return (
                     <button key={c.id} type="button" onClick={() => toggleCompetencia(c.id, c.peso_defecto ?? 10)}
                       className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-                        activo ? 'border-[#0D2D6B] bg-[#0D2D6B] text-white' : 'border-slate-300 text-slate-600 hover:border-[#16468E]'
+                        activo ? 'border-brand bg-brand text-white' : 'border-slate-300 text-slate-600 hover:border-brand-light'
                       }`}>
                       {c.nombre}{activo && ` · ${competenciasSel[c.id]}%`}
                     </button>

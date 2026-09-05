@@ -9,3 +9,4 @@ scripts/sync/.env
 *.log
 .DS_Store
 docs/
+paletas/

@@ -5,10 +5,10 @@ import {
   UserCheck, GraduationCap, BarChart3, Settings, LogOut, Bell, Menu,
 } from 'lucide-react'
 import { AuthProvider, useAuth } from './lib/auth'
+import { AlertProvider } from './lib/alerts'
 import { supabase } from './lib/supabase'
 
 import Login from './pages/Login'
-import Olvide from './pages/Olvide'
 import Reset from './pages/Reset'
 import Dashboard from './pages/Dashboard'
 import VacantesActivas from './pages/VacantesActivas'
@@ -66,8 +66,8 @@ function Layout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="flex min-h-screen bg-slate-100">
-      <aside className={`fixed inset-y-0 left-0 z-40 w-60 transform bg-[#0D2D6B] text-white transition-transform
+    <div className="flex min-h-screen bg-fondo-app">
+      <aside className={`fixed inset-y-0 left-0 z-40 w-60 transform bg-gradient-to-b from-brand to-brand-dark2 text-white transition-transform
         lg:static lg:translate-x-0 ${menuAbierto ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex items-center gap-2 border-b border-white/10 px-4 py-4">
           <img src={`${import.meta.env.BASE_URL}images/logo_cacsb_blanc.png`} alt="CAC" className="h-9" />
@@ -100,7 +100,7 @@ function Layout({ children }: { children: ReactNode }) {
       )}
 
       <div className="flex min-h-screen flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
+        <header className="flex items-center justify-between border-b border-slate-300 bg-white px-4 py-3 shadow-sm">
           <button className="lg:hidden" onClick={() => setMenuAbierto(true)}><Menu /></button>
           <div className="hidden text-sm text-slate-500 lg:block">
             Sistema de Gestión de Vacantes y Procesos de Selección
@@ -108,12 +108,12 @@ function Layout({ children }: { children: ReactNode }) {
           <div className="flex items-center gap-3">
             <Bell size={18} className="text-slate-400" />
             <NavLink to="/perfil" className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#0D2D6B] text-xs font-semibold text-white">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand text-xs font-semibold text-white">
                 {perfil?.nombre?.slice(0, 2).toUpperCase() ?? '..'}
               </div>
               <span className="hidden text-sm font-medium text-slate-700 sm:block">{perfil?.nombre}</span>
             </NavLink>
-            <button onClick={salir} title="Cerrar sesión" className="text-slate-400 hover:text-red-500">
+            <button onClick={salir} title="Cerrar sesión" className="text-slate-400 hover:text-rose-500">
               <LogOut size={18} />
             </button>
           </div>
@@ -128,7 +128,6 @@ function Rutas() {
   return (
     <Routes>
       <Route path="/login" element={<SoloInvitados><Login /></SoloInvitados>} />
-      <Route path="/olvide" element={<SoloInvitados><Olvide /></SoloInvitados>} />
       <Route path="/reset" element={<Reset />} />
       <Route path="/*" element={
         <Guard>
@@ -164,9 +163,11 @@ function Rutas() {
 export default function App() {
   return (
     <AuthProvider>
-      <HashRouter>
-        <Rutas />
-      </HashRouter>
+      <AlertProvider>
+        <HashRouter>
+          <Rutas />
+        </HashRouter>
+      </AlertProvider>
     </AuthProvider>
   )
 }

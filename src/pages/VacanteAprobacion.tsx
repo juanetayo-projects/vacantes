@@ -100,7 +100,7 @@ export default function VacanteAprobacion() {
               const icono = a.estado === 'aprobado' ? <Check size={14} /> : a.estado === 'rechazado' ? <X size={14} />
                 : a.estado === 'modificacion_solicitada' ? <AlertTriangle size={14} /> : <Clock size={14} />
               const color = a.estado === 'aprobado' ? 'bg-emerald-500' : a.estado === 'rechazado' ? 'bg-red-500'
-                : a.estado === 'modificacion_solicitada' ? 'bg-orange-500' : i === indiceActual ? 'bg-[#16468E]' : 'bg-slate-300'
+                : a.estado === 'modificacion_solicitada' ? 'bg-orange-500' : i === indiceActual ? 'bg-brand-light' : 'bg-slate-300'
               return (
                 <li key={a.id} className="relative">
                   <span className={`absolute -left-[31px] flex h-6 w-6 items-center justify-center rounded-full text-white ${color}`}>{icono}</span>

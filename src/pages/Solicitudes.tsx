@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
-import { PageHeader, Badge } from '../components/ui'
+import { PageHeader, Badge, TableShell, TableHead, TableEmpty, filaZebra } from '../components/ui'
 import { ESTADO_VACANTE_LABELS, formatoFecha } from '../lib/data'
 import type { Tables } from '../lib/database.types'
 
@@ -34,41 +34,31 @@ export default function Solicitudes() {
       <div className="mb-4 flex gap-2 border-b border-slate-200">
         {(['pendientes', 'mias'] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)}
-            className={`px-4 py-2 text-sm font-medium ${tab === t ? 'border-b-2 border-[#0D2D6B] text-[#0D2D6B]' : 'text-slate-500'}`}>
+            className={`px-4 py-2 text-sm font-medium ${tab === t ? 'border-b-2 border-brand text-brand' : 'text-slate-500'}`}>
             {t === 'pendientes' ? 'Pendientes de Aprobación' : 'Mis Solicitudes'}
           </button>
         ))}
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-slate-50 text-xs uppercase text-slate-500">
-            <tr>
-              <th className="px-4 py-3">Código</th>
-              <th className="px-4 py-3">Cargo</th>
-              <th className="px-4 py-3">Área</th>
-              <th className="px-4 py-3">Estado</th>
-              <th className="px-4 py-3">Fecha Solicitud</th>
+      <TableShell>
+        <TableHead>
+          <th>Código</th><th>Cargo</th><th>Área</th><th>Estado</th><th>Fecha Solicitud</th>
+        </TableHead>
+        <tbody>
+          {vacantes.map((v, i) => (
+            <tr key={v.id} className={filaZebra(i)}>
+              <td className="px-4 py-3">
+                <Link to={`/vacantes/${v.id}/aprobacion`} className="font-medium text-brand-light hover:underline">{v.codigo}</Link>
+              </td>
+              <td className="px-4 py-3">{v.cargo}</td>
+              <td className="px-4 py-3 text-slate-500">{v.areas?.nombre}</td>
+              <td className="px-4 py-3"><Badge texto={ESTADO_VACANTE_LABELS[v.estado]} valor={v.estado} /></td>
+              <td className="px-4 py-3 text-slate-500">{formatoFecha(v.created_at)}</td>
             </tr>
-          </thead>
-          <tbody>
-            {vacantes.map((v) => (
-              <tr key={v.id} className="border-t border-slate-100 hover:bg-slate-50">
-                <td className="px-4 py-3">
-                  <Link to={`/vacantes/${v.id}/aprobacion`} className="font-medium text-[#16468E] hover:underline">{v.codigo}</Link>
-                </td>
-                <td className="px-4 py-3">{v.cargo}</td>
-                <td className="px-4 py-3 text-slate-500">{v.areas?.nombre}</td>
-                <td className="px-4 py-3"><Badge texto={ESTADO_VACANTE_LABELS[v.estado]} valor={v.estado} /></td>
-                <td className="px-4 py-3 text-slate-500">{formatoFecha(v.created_at)}</td>
-              </tr>
-            ))}
-            {!cargando && !vacantes.length && (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400">No hay solicitudes para mostrar</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+          ))}
+          {!cargando && !vacantes.length && <TableEmpty colSpan={5}>No hay solicitudes para mostrar</TableEmpty>}
+        </tbody>
+      </TableShell>
     </div>
   )
 }

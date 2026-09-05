@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { PageHeader, Badge } from '../components/ui'
+import { PageHeader, Badge, TableShell, TableHead, TableEmpty, filaZebra } from '../components/ui'
 import { ESTADO_VACANTE_LABELS, ESTADO_POSTULACION_LABELS, formatoFecha } from '../lib/data'
 import type { Tables } from '../lib/database.types'
 
@@ -47,53 +47,49 @@ export default function ListaCandidatos({ modo = 'candidatos' }: { modo?: Modo }
       <PageHeader titulo={titulo} subtitulo={subtitulo} />
 
       {modo === 'candidatos' ? (
-        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase text-slate-500">
-              <tr><th className="px-4 py-3">Código</th><th className="px-4 py-3">Cargo</th><th className="px-4 py-3">Área</th><th className="px-4 py-3">Estado</th><th className="px-4 py-3">Publicada</th></tr>
-            </thead>
-            <tbody>
-              {vacantes.map((v) => (
-                <tr key={v.id} className="border-t border-slate-100 hover:bg-slate-50">
-                  <td className="px-4 py-3">
-                    <Link to={`/vacantes/${v.id}/candidatos`} className="font-medium text-[#16468E] hover:underline">{v.codigo}</Link>
-                  </td>
-                  <td className="px-4 py-3">{v.cargo}</td>
-                  <td className="px-4 py-3 text-slate-500">{v.areas?.nombre}</td>
-                  <td className="px-4 py-3"><Badge texto={ESTADO_VACANTE_LABELS[v.estado]} valor={v.estado} /></td>
-                  <td className="px-4 py-3 text-slate-500">{formatoFecha(v.fecha_publicacion)}</td>
-                </tr>
-              ))}
-              {!cargando && !vacantes.length && <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400">No hay vacantes en reclutamiento activo</td></tr>}
-            </tbody>
-          </table>
-        </div>
+        <TableShell>
+          <TableHead>
+            <th>Código</th><th>Cargo</th><th>Área</th><th>Estado</th><th>Publicada</th>
+          </TableHead>
+          <tbody>
+            {vacantes.map((v, i) => (
+              <tr key={v.id} className={filaZebra(i)}>
+                <td className="px-4 py-3">
+                  <Link to={`/vacantes/${v.id}/candidatos`} className="font-medium text-brand-light hover:underline">{v.codigo}</Link>
+                </td>
+                <td className="px-4 py-3">{v.cargo}</td>
+                <td className="px-4 py-3 text-slate-500">{v.areas?.nombre}</td>
+                <td className="px-4 py-3"><Badge texto={ESTADO_VACANTE_LABELS[v.estado]} valor={v.estado} /></td>
+                <td className="px-4 py-3 text-slate-500">{formatoFecha(v.fecha_publicacion)}</td>
+              </tr>
+            ))}
+            {!cargando && !vacantes.length && <TableEmpty colSpan={5}>No hay vacantes en reclutamiento activo</TableEmpty>}
+          </tbody>
+        </TableShell>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase text-slate-500">
-              <tr><th className="px-4 py-3">Candidato</th><th className="px-4 py-3">Vacante</th><th className="px-4 py-3">Estado</th><th /></tr>
-            </thead>
-            <tbody>
-              {postulaciones.map((p) => (
-                <tr key={p.id} className="border-t border-slate-100 hover:bg-slate-50">
-                  <td className="px-4 py-3 font-medium text-slate-700">{p.candidatos.nombre}</td>
-                  <td className="px-4 py-3 text-slate-500">{p.vacantes.cargo} · {p.vacantes.codigo}</td>
-                  <td className="px-4 py-3"><Badge texto={ESTADO_POSTULACION_LABELS[p.estado]} valor={p.estado} /></td>
-                  <td className="px-4 py-3 text-right">
-                    <Link className="text-xs font-medium text-[#16468E] hover:underline"
-                      to={modo === 'evaluaciones' ? `/postulaciones/${p.id}/evaluacion`
-                        : modo === 'contrataciones' ? `/postulaciones/${p.id}/contratacion`
-                        : `/postulaciones/${p.id}/induccion`}>
-                      Abrir →
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-              {!cargando && !postulaciones.length && <tr><td colSpan={4} className="px-4 py-8 text-center text-slate-400">No hay candidatos en esta etapa</td></tr>}
-            </tbody>
-          </table>
-        </div>
+        <TableShell>
+          <TableHead>
+            <th>Candidato</th><th>Vacante</th><th>Estado</th><th />
+          </TableHead>
+          <tbody>
+            {postulaciones.map((p, i) => (
+              <tr key={p.id} className={filaZebra(i)}>
+                <td className="px-4 py-3 font-medium text-slate-700">{p.candidatos.nombre}</td>
+                <td className="px-4 py-3 text-slate-500">{p.vacantes.cargo} · {p.vacantes.codigo}</td>
+                <td className="px-4 py-3"><Badge texto={ESTADO_POSTULACION_LABELS[p.estado]} valor={p.estado} /></td>
+                <td className="px-4 py-3 text-right">
+                  <Link className="text-xs font-medium text-brand-light hover:underline"
+                    to={modo === 'evaluaciones' ? `/postulaciones/${p.id}/evaluacion`
+                      : modo === 'contrataciones' ? `/postulaciones/${p.id}/contratacion`
+                      : `/postulaciones/${p.id}/induccion`}>
+                    Abrir →
+                  </Link>
+                </td>
+              </tr>
+            ))}
+            {!cargando && !postulaciones.length && <TableEmpty colSpan={4}>No hay candidatos en esta etapa</TableEmpty>}
+          </tbody>
+        </TableShell>
       )}
     </div>
   )

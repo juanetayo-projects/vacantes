@@ -4,12 +4,13 @@ import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from 'recharts'
 import { supabase } from '../lib/supabase'
-import { PageHeader, Card, MetricCard, Boton } from '../components/ui'
+import { PageHeader, Card, MetricCard, Boton, FilterBar, tooltipOscuroProps } from '../components/ui'
 import { diasDesde } from '../lib/data'
 import type { Tables } from '../lib/database.types'
 
 type Vacante = Tables<'vacantes'> & { areas: { nombre: string } | null }
-const FUENTE_COLORS = ['#2ECC71', '#3498DB', '#0D2D6B', '#F39C12', '#94a3b8']
+// Paleta "Salud y Bienestar"
+const FUENTE_COLORS = ['#009688', '#0D2D6B', '#4CAF50', '#F59E0B', '#94a3b8']
 const FUENTE_LABELS: Record<string, string> = {
   portal_empleo: 'Portal de Empleo', referido: 'Referidos', linkedin: 'LinkedIn', pagina_web: 'Página Web', otros: 'Otros',
 }
@@ -77,7 +78,7 @@ export default function Reportes() {
         </>
       } />
 
-      <div className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <FilterBar>
         <label className="flex flex-col gap-1 text-sm"><span className="font-medium text-slate-600">Rango de Fechas</span>
           <div className="flex items-center gap-2">
             <input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} className="rounded-lg border border-slate-300 px-2 py-1.5 text-sm" />
@@ -85,12 +86,12 @@ export default function Reportes() {
             <input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} className="rounded-lg border border-slate-300 px-2 py-1.5 text-sm" />
           </div>
         </label>
-      </div>
+      </FilterBar>
 
       <div className="mb-4 flex gap-2 border-b border-slate-200 text-sm">
         {(['dashboard', 'cobertura', 'fuentes', 'tiempo', 'eficiencia'] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)}
-            className={`px-3 py-2 font-medium capitalize ${tab === t ? 'border-b-2 border-[#0D2D6B] text-[#0D2D6B]' : 'text-slate-500'}`}>{t}</button>
+            className={`px-3 py-2 font-medium capitalize ${tab === t ? 'border-b-2 border-brand text-brand' : 'text-slate-500'}`}>{t}</button>
         ))}
       </div>
 
@@ -111,8 +112,8 @@ export default function Reportes() {
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="area" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 12 }} />
-                  <Tooltip />
-                  <Bar dataKey="dias" fill="#0D2D6B" radius={[4, 4, 0, 0]} />
+                  <Tooltip {...tooltipOscuroProps} />
+                  <Bar dataKey="dias" fill="#009688" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : <p className="py-8 text-center text-sm text-slate-400">Sin vacantes cubiertas en el rango seleccionado</p>}
@@ -128,7 +129,7 @@ export default function Reportes() {
                   <Pie data={fuentesData} dataKey="value" nameKey="name" innerRadius={50} outerRadius={80} paddingAngle={2}>
                     {fuentesData.map((_, i) => <Cell key={i} fill={FUENTE_COLORS[i % FUENTE_COLORS.length]} />)}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip {...tooltipOscuroProps} />
                 </PieChart>
               </ResponsiveContainer>
             ) : <p className="py-8 text-center text-sm text-slate-400">Sin candidatos registrados aún</p>}

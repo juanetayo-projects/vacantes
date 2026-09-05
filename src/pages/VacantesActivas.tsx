@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Plus } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-import { PageHeader, FilterBar, Boton, Badge, Select, Input } from '../components/ui'
+import { PageHeader, FilterBar, Boton, Badge, Select, Input, TableShell, TableHead, TableEmpty, filaZebra } from '../components/ui'
 import { ESTADO_VACANTE_LABELS, diasDesde } from '../lib/data'
 import type { Tables } from '../lib/database.types'
 
@@ -73,37 +73,28 @@ export default function VacantesActivas() {
         </Select>
       </FilterBar>
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-slate-50 text-xs uppercase text-slate-500">
-            <tr>
-              <th className="px-4 py-3">Código</th>
-              <th className="px-4 py-3">Cargo</th>
-              <th className="px-4 py-3">Área</th>
-              <th className="px-4 py-3">Estado</th>
-              <th className="px-4 py-3">Días Abiertos</th>
-              <th className="px-4 py-3">Postulantes</th>
+      <TableShell>
+        <TableHead>
+          <th>Código</th><th>Cargo</th><th>Área</th><th>Estado</th><th>Días Abiertos</th><th>Postulantes</th>
+        </TableHead>
+        <tbody>
+          {visibles.map((v, i) => (
+            <tr key={v.id} className={filaZebra(i)}>
+              <td className="px-4 py-3">
+                <Link to={destino(v)} className="font-medium text-brand-light hover:underline">{v.codigo}</Link>
+              </td>
+              <td className="px-4 py-3">{v.cargo}</td>
+              <td className="px-4 py-3 text-slate-500">{v.areas?.nombre}</td>
+              <td className="px-4 py-3"><Badge texto={ESTADO_VACANTE_LABELS[v.estado]} valor={v.estado} /></td>
+              <td className="px-4 py-3 text-slate-500">{diasDesde(v.created_at)}</td>
+              <td className="px-4 py-3 text-slate-500">{v.postulantes}</td>
             </tr>
-          </thead>
-          <tbody>
-            {visibles.map((v) => (
-              <tr key={v.id} className="border-t border-slate-100 hover:bg-slate-50">
-                <td className="px-4 py-3">
-                  <Link to={destino(v)} className="font-medium text-[#16468E] hover:underline">{v.codigo}</Link>
-                </td>
-                <td className="px-4 py-3">{v.cargo}</td>
-                <td className="px-4 py-3 text-slate-500">{v.areas?.nombre}</td>
-                <td className="px-4 py-3"><Badge texto={ESTADO_VACANTE_LABELS[v.estado]} valor={v.estado} /></td>
-                <td className="px-4 py-3 text-slate-500">{diasDesde(v.created_at)}</td>
-                <td className="px-4 py-3 text-slate-500">{v.postulantes}</td>
-              </tr>
-            ))}
-            {!cargando && !visibles.length && (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-400">No hay vacantes que coincidan con el filtro</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+          ))}
+          {!cargando && !visibles.length && (
+            <TableEmpty colSpan={6}>No hay vacantes que coincidan con el filtro</TableEmpty>
+          )}
+        </tbody>
+      </TableShell>
 
       {totalPaginas > 1 && (
         <div className="mt-3 flex items-center justify-center gap-1 text-sm">
@@ -111,7 +102,7 @@ export default function VacantesActivas() {
             className="rounded px-2 py-1 disabled:opacity-30">‹</button>
           {Array.from({ length: totalPaginas }, (_, i) => i + 1).map((n) => (
             <button key={n} onClick={() => setPagina(n)}
-              className={`h-7 w-7 rounded ${n === pagina2 ? 'bg-[#0D2D6B] text-white' : 'hover:bg-slate-200'}`}>{n}</button>
+              className={`h-7 w-7 rounded ${n === pagina2 ? 'bg-brand text-white' : 'hover:bg-slate-200'}`}>{n}</button>
           ))}
           <button disabled={pagina2 === totalPaginas} onClick={() => setPagina(pagina2 + 1)}
             className="rounded px-2 py-1 disabled:opacity-30">›</button>

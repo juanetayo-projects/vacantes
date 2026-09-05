@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { Plus, ArrowRight, ChevronRight } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { PageHeader, Card, Modal, Boton, Input, Select } from '../components/ui'
+import { useAlert } from '../lib/alerts'
 import type { Tables } from '../lib/database.types'
 
 type Postulacion = Tables<'postulaciones'> & { candidatos: Tables<'candidatos'> }
@@ -24,6 +25,7 @@ const SIGUIENTE: Record<string, Postulacion['estado']> = {
 export default function CandidatosKanban() {
   const { id } = useParams()
   const idNum = Number(id)
+  const { confirm } = useAlert()
   const [vacante, setVacante] = useState<Tables<'vacantes'> | null>(null)
   const [postulaciones, setPostulaciones] = useState<Postulacion[]>([])
   const [modalNuevo, setModalNuevo] = useState(false)
@@ -52,6 +54,10 @@ export default function CandidatosKanban() {
   }
 
   async function descartar(p: Postulacion) {
+    const ok = await confirm(`¿Descartar a ${p.candidatos.nombre} del proceso de selección?`, {
+      titulo: 'Descartar candidato', variante: 'peligro', textoConfirmar: 'Descartar',
+    })
+    if (!ok) return
     await supabase.from('postulaciones').update({ estado: 'descartado' }).eq('id', p.id)
     cargar()
   }
@@ -91,7 +97,7 @@ export default function CandidatosKanban() {
                       {p.puntaje_ajuste ? `Puntaje: ${p.puntaje_ajuste}/100` : `Postulado: ${new Date(p.fecha_postulacion).toLocaleDateString('es-CO')}`}
                     </p>
                     <div className="mt-2 flex items-center justify-between">
-                      <Link to={`/postulaciones/${p.id}/evaluacion`} className="flex items-center gap-1 text-xs font-medium text-[#16468E] hover:underline">
+                      <Link to={`/postulaciones/${p.id}/evaluacion`} className="flex items-center gap-1 text-xs font-medium text-brand-light hover:underline">
                         Ver más <ChevronRight size={12} />
                       </Link>
                       <div className="flex gap-1">
@@ -124,7 +130,10 @@ export default function CandidatosKanban() {
             <option value="pagina_web">Página Web</option>
             <option value="otros">Otros</option>
           </Select>
-          <Boton disabled={guardando} onClick={crearCandidato}>{guardando ? 'Guardando…' : 'Agregar'}</Boton>
+          <div className="flex justify-end gap-2">
+            <Boton variante="secundario" onClick={() => setModalNuevo(false)}>Cancelar</Boton>
+            <Boton disabled={guardando} onClick={crearCandidato}>{guardando ? 'Guardando…' : 'Agregar'}</Boton>
+          </div>
         </div>
       </Modal>
     </div>

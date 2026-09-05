@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
 import { PageHeader, Card, Stepper, Boton, Input, Select, Textarea, Badge } from '../components/ui'
+import { useAlert } from '../lib/alerts'
 import { formatoMoneda } from '../lib/data'
 import type { Tables } from '../lib/database.types'
 
@@ -28,6 +29,7 @@ export default function Contratacion() {
   const idNum = Number(id)
   const navigate = useNavigate()
   const { perfil } = useAuth()
+  const { confirm } = useAlert()
   const [paso, setPaso] = useState(0)
   const [postulacion, setPostulacion] = useState<Postulacion | null>(null)
   const [oferta, setOferta] = useState<Tables<'ofertas'> | null>(null)
@@ -82,6 +84,11 @@ export default function Contratacion() {
 
   async function formalizarContratacion() {
     if (!postulacion || !perfil) return
+    const ok = await confirm(
+      `Vas a formalizar la contratación de ${postulacion.candidatos.nombre} para ${postulacion.vacantes.cargo}. La vacante quedará marcada como Contratada.`,
+      { titulo: 'Formalizar contratación', textoConfirmar: 'Formalizar' }
+    )
+    if (!ok) return
     setGuardando(true)
     if (oferta) await supabase.from('ofertas').update({ estado: 'aceptada', aprobado_por: perfil.id, fecha_aprobacion: new Date().toISOString() }).eq('id', oferta.id)
     await supabase.from('vacantes').update({ estado: 'contratada', fecha_cierre: new Date().toISOString().slice(0, 10) }).eq('id', postulacion.vacante_id)
@@ -149,7 +156,7 @@ export default function Contratacion() {
                   <div className="flex gap-1">
                     {(['pendiente', 'recibido', 'completado'] as const).map((e) => (
                       <button key={e} onClick={() => actualizarDocumento(d.id, e)}
-                        className={`rounded px-2 py-1 text-xs capitalize ${d.estado === e ? 'bg-[#0D2D6B] text-white' : 'bg-slate-100 text-slate-500'}`}>
+                        className={`rounded px-2 py-1 text-xs capitalize ${d.estado === e ? 'bg-brand text-white' : 'bg-slate-100 text-slate-500'}`}>
                         {e}
                       </button>
                     ))}

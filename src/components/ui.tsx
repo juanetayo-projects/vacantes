@@ -1,12 +1,13 @@
 import type { ButtonHTMLAttributes, InputHTMLAttributes, SelectHTMLAttributes, TextareaHTMLAttributes, ReactNode } from 'react'
+import { X } from 'lucide-react'
 
 // --- Card de métrica con degradado institucional ---
 export function MetricCard({
   titulo, valor, icono, sub,
 }: { titulo: string; valor: ReactNode; icono?: ReactNode; sub?: string }) {
   return (
-    <div className="rounded-2xl p-5 text-white shadow-md
-                    bg-gradient-to-br from-[#0D2D6B] to-[#16468E]">
+    <div className="rounded-2xl p-5 text-white shadow-lg shadow-brand/20
+                    bg-gradient-to-br from-brand to-brand-light">
       <div className="flex items-center justify-between">
         <span className="text-sm/5 opacity-80">{titulo}</span>
         {icono}
@@ -23,7 +24,7 @@ export function PageHeader({ titulo, subtitulo, acciones }:
   return (
     <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
       <div>
-        <h1 className="text-xl font-semibold text-[#0D2D6B]">{titulo}</h1>
+        <h1 className="text-xl font-semibold text-brand">{titulo}</h1>
         {subtitulo && <p className="text-sm text-slate-500">{subtitulo}</p>}
       </div>
       <div className="flex gap-2">{acciones}</div>
@@ -35,7 +36,7 @@ export function PageHeader({ titulo, subtitulo, acciones }:
 export function FilterBar({ children }: { children: ReactNode }) {
   return (
     <div className="mb-4 flex flex-wrap items-end gap-3 rounded-xl
-                    border border-slate-200 bg-white p-4 shadow-sm">
+                    border border-slate-300 bg-white p-4 shadow-md">
       {children}
     </div>
   )
@@ -44,26 +45,64 @@ export function FilterBar({ children }: { children: ReactNode }) {
 // --- Card genérica ---
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
-    <div className={`rounded-xl border border-slate-200 bg-white p-5 shadow-sm ${className}`}>
+    <div className={`rounded-xl border border-slate-300 bg-white p-5 shadow-md ${className}`}>
       {children}
     </div>
   )
 }
 
-// --- Modal reutilizable ---
+// --- Contenedor de tabla con encabezado oscuro y filas en cebra ---
+export function TableShell({ children }: { children: ReactNode }) {
+  return (
+    <div className="overflow-x-auto rounded-xl border border-slate-300 bg-white shadow-md">
+      <table className="w-full text-left text-sm">{children}</table>
+    </div>
+  )
+}
+
+export function TableHead({ children }: { children: ReactNode }) {
+  return (
+    <thead className="bg-brand text-xs uppercase tracking-wide text-white">
+      <tr className="[&>th]:px-4 [&>th]:py-3 [&>th]:font-semibold">{children}</tr>
+    </thead>
+  )
+}
+
+/** Clase para <tr>: filas pares blancas, impares con tinte institucional suave. */
+export function filaZebra(index: number) {
+  return `border-t border-slate-200 transition-colors hover:bg-brand-50 ${index % 2 === 1 ? 'bg-brand-50/60' : 'bg-white'}`
+}
+
+export function TableEmpty({ colSpan, children }: { colSpan: number; children: ReactNode }) {
+  return (
+    <tr>
+      <td colSpan={colSpan} className="px-4 py-8 text-center text-slate-400">{children}</td>
+    </tr>
+  )
+}
+
+/** contentStyle listo para <Tooltip/> de Recharts, con fondo oscuro institucional. */
+export const tooltipOscuroProps = {
+  contentStyle: { background: '#0D2D6B', border: 'none', borderRadius: 10, color: '#fff', fontSize: 12 },
+  itemStyle: { color: '#fff' },
+  labelStyle: { color: '#EAF0FA' },
+}
+
+// --- Modal reutilizable: siempre con botón de cerrar ---
 export function Modal({ open, onClose, titulo, children, ancho = 'max-w-lg' }:
   { open: boolean; onClose: () => void; titulo?: string; children: ReactNode; ancho?: string }) {
   if (!open) return null
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 animate-modal-overlay"
          onClick={onClose}>
-      <div className={`w-full ${ancho} max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-xl`}
+      <div className={`w-full ${ancho} max-h-[92vh] overflow-y-auto rounded-2xl bg-white shadow-2xl animate-modal-card`}
            onClick={(e) => e.stopPropagation()}>
-        {titulo && (
-          <div className="sticky top-0 rounded-t-2xl bg-[#0D2D6B] px-5 py-3 text-white font-medium">
-            {titulo}
-          </div>
-        )}
+        <div className="sticky top-0 z-10 flex items-center justify-between rounded-t-2xl bg-gradient-to-r from-brand to-brand-light px-5 py-3 text-white">
+          <span className="font-medium">{titulo}</span>
+          <button onClick={onClose} aria-label="Cerrar" className="rounded-full p-1 text-white/80 hover:bg-white/15 hover:text-white">
+            <X size={18} />
+          </button>
+        </div>
         <div className="p-5">{children}</div>
       </div>
     </div>
@@ -74,15 +113,25 @@ export function Modal({ open, onClose, titulo, children, ancho = 'max-w-lg' }:
 export function Boton({ children, className = '', variante = 'primario', ...props }:
   ButtonHTMLAttributes<HTMLButtonElement> & { variante?: 'primario' | 'secundario' | 'peligro' | 'exito' }) {
   const estilos: Record<string, string> = {
-    primario: 'bg-[#0D2D6B] text-white hover:bg-[#16468E]',
-    secundario: 'bg-slate-100 text-slate-700 hover:bg-slate-200',
-    peligro: 'bg-red-600 text-white hover:bg-red-700',
-    exito: 'bg-emerald-600 text-white hover:bg-emerald-700',
+    primario: 'bg-brand text-white hover:bg-brand-light',
+    secundario: 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300',
+    peligro: 'bg-peligro text-white hover:bg-rose-700',
+    exito: 'bg-exito text-white hover:bg-emerald-600',
   }
   return (
     <button {...props}
       className={`rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${estilos[variante]} ${className}`}>
       {children}
+    </button>
+  )
+}
+
+// --- Botón de cerrar/cancelar genérico (icono X), para usar en esquinas de cards no-modales ---
+export function BotonCerrar({ onClick, className = '' }: { onClick: () => void; className?: string }) {
+  return (
+    <button onClick={onClick} aria-label="Cerrar"
+      className={`rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 ${className}`}>
+      <X size={18} />
     </button>
   )
 }
@@ -94,8 +143,8 @@ const BADGE_COLORS: Record<string, string> = {
   pendiente: 'bg-amber-100 text-amber-700',
   aprobada: 'bg-emerald-100 text-emerald-700',
   aprobado: 'bg-emerald-100 text-emerald-700',
-  rechazada: 'bg-red-100 text-red-700',
-  rechazado: 'bg-red-100 text-red-700',
+  rechazada: 'bg-rose-100 text-rose-700',
+  rechazado: 'bg-rose-100 text-rose-700',
   modificacion_solicitada: 'bg-orange-100 text-orange-700',
   en_requisicion: 'bg-sky-100 text-sky-700',
   publicada: 'bg-blue-100 text-blue-700',
@@ -104,11 +153,11 @@ const BADGE_COLORS: Record<string, string> = {
   contratada: 'bg-teal-100 text-teal-700',
   en_induccion: 'bg-cyan-100 text-cyan-700',
   cerrada: 'bg-slate-200 text-slate-700',
-  cancelada: 'bg-red-100 text-red-700',
+  cancelada: 'bg-rose-100 text-rose-700',
   bajo: 'bg-slate-100 text-slate-600',
   medio: 'bg-amber-100 text-amber-700',
   alto: 'bg-orange-100 text-orange-700',
-  critico: 'bg-red-100 text-red-700',
+  critico: 'bg-rose-100 text-rose-700',
   completado: 'bg-emerald-100 text-emerald-700',
   recibido: 'bg-sky-100 text-sky-700',
   postulado: 'bg-slate-100 text-slate-600',
@@ -116,8 +165,8 @@ const BADGE_COLORS: Record<string, string> = {
   entrevista: 'bg-amber-100 text-amber-700',
   finalista: 'bg-violet-100 text-violet-700',
   seleccionado: 'bg-emerald-100 text-emerald-700',
-  no_seleccionado: 'bg-red-100 text-red-700',
-  descartado: 'bg-red-100 text-red-700',
+  no_seleccionado: 'bg-rose-100 text-rose-700',
+  descartado: 'bg-rose-100 text-rose-700',
 }
 
 export function Badge({ texto, valor }: { texto: string; valor?: string }) {
@@ -133,13 +182,13 @@ export function Stepper({ pasos, actual }: { pasos: string[]; actual: number }) 
         <div key={p} className="flex flex-1 items-center last:flex-none">
           <div className="flex flex-col items-center gap-1">
             <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold
-              ${i < actual ? 'bg-[#0D2D6B] text-white' : i === actual ? 'bg-[#16468E] text-white ring-4 ring-blue-100' : 'bg-slate-200 text-slate-500'}`}>
+              ${i < actual ? 'bg-brand text-white' : i === actual ? 'bg-brand-light text-white ring-4 ring-brand-50' : 'bg-slate-200 text-slate-500'}`}>
               {i + 1}
             </div>
-            <span className={`text-[11px] whitespace-nowrap ${i === actual ? 'text-[#0D2D6B] font-medium' : 'text-slate-400'}`}>{p}</span>
+            <span className={`text-[11px] whitespace-nowrap ${i === actual ? 'text-brand font-medium' : 'text-slate-400'}`}>{p}</span>
           </div>
           {i < pasos.length - 1 && (
-            <div className={`mx-2 h-0.5 flex-1 ${i < actual ? 'bg-[#0D2D6B]' : 'bg-slate-200'}`} />
+            <div className={`mx-2 h-0.5 flex-1 ${i < actual ? 'bg-brand' : 'bg-slate-200'}`} />
           )}
         </div>
       ))}
@@ -152,7 +201,7 @@ export function Input({ label, ...props }: { label?: string } & InputHTMLAttribu
     <label className="flex flex-col gap-1 text-sm">
       {label && <span className="font-medium text-slate-600">{label}</span>}
       <input {...props}
-        className={`rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#16468E] focus:outline-none focus:ring-1 focus:ring-[#16468E] ${props.className ?? ''}`} />
+        className={`rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-light focus:outline-none focus:ring-1 focus:ring-brand-light ${props.className ?? ''}`} />
     </label>
   )
 }
@@ -163,7 +212,7 @@ export function Select({ label, children, ...props }:
     <label className="flex flex-col gap-1 text-sm">
       {label && <span className="font-medium text-slate-600">{label}</span>}
       <select {...props}
-        className={`rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#16468E] focus:outline-none focus:ring-1 focus:ring-[#16468E] ${props.className ?? ''}`}>
+        className={`rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-light focus:outline-none focus:ring-1 focus:ring-brand-light ${props.className ?? ''}`}>
         {children}
       </select>
     </label>
@@ -175,7 +224,7 @@ export function Textarea({ label, ...props }: { label?: string } & TextareaHTMLA
     <label className="flex flex-col gap-1 text-sm">
       {label && <span className="font-medium text-slate-600">{label}</span>}
       <textarea {...props}
-        className={`rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#16468E] focus:outline-none focus:ring-1 focus:ring-[#16468E] ${props.className ?? ''}`} />
+        className={`rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-light focus:outline-none focus:ring-1 focus:ring-brand-light ${props.className ?? ''}`} />
     </label>
   )
 }

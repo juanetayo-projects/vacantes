@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth, ROLE_LABELS } from '../lib/auth'
 import { PageHeader, Card, Boton, Input } from '../components/ui'
+import { useAlert } from '../lib/alerts'
 
 const PERMISOS = [
   { key: 'perm_gestion_vacantes', label: 'Gestión de Vacantes' },
@@ -13,9 +14,9 @@ const PERMISOS = [
 
 export default function PerfilUsuario() {
   const { perfil, refrescarPerfil } = useAuth()
+  const { notify } = useAlert()
   const [editando, setEditando] = useState(false)
   const [guardando, setGuardando] = useState(false)
-  const [msg, setMsg] = useState('')
   const [form, setForm] = useState({
     tipo_documento: perfil?.tipo_documento ?? '', numero_documento: perfil?.numero_documento ?? '',
     telefono: perfil?.telefono ?? '', fecha_nacimiento: perfil?.fecha_nacimiento ?? '',
@@ -29,6 +30,7 @@ export default function PerfilUsuario() {
     await refrescarPerfil()
     setGuardando(false)
     setEditando(false)
+    notify('Tu información se actualizó correctamente.', 'success')
   }
 
   async function cambiarContrasena() {
@@ -36,7 +38,7 @@ export default function PerfilUsuario() {
     await supabase.auth.resetPasswordForEmail(perfil.email, {
       redirectTo: `${window.location.origin}${import.meta.env.BASE_URL}#/reset`,
     })
-    setMsg('Te enviamos un enlace a tu correo para cambiar la contraseña.')
+    notify('Te enviamos un enlace a tu correo para cambiar la contraseña.', 'success', 'Correo enviado')
   }
 
   if (!perfil) return null
@@ -49,11 +51,10 @@ export default function PerfilUsuario() {
           <Boton variante="secundario" onClick={cambiarContrasena}>Cambiar Contraseña</Boton>
         </>
       } />
-      {msg && <p className="mb-3 text-sm text-emerald-600">{msg}</p>}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card className="flex flex-col items-center text-center lg:col-span-1">
-          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#0D2D6B] text-2xl font-semibold text-white">
+          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-brand text-2xl font-semibold text-white">
             {perfil.nombre.slice(0, 2).toUpperCase()}
           </div>
           <p className="mt-3 font-semibold text-slate-700">{perfil.nombre}</p>

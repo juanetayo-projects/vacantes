@@ -1,8 +1,27 @@
 @import "tailwindcss";
 
 @theme {
+  /* Marca institucional (logo Clínica Santa Bárbara) */
   --color-azul: #0D2D6B;
   --color-azul2: #16468E;
+  --color-brand: #0D2D6B;
+  --color-brand-light: #16468E;
+  --color-brand-dark: #061536;
+  --color-brand-dark2: #0A2356;
+  --color-brand-50: #EAF0FA;
+
+  /* Acentos "Salud y Bienestar" (paleta del negocio: clínica) */
+  --color-turquesa: #009688;
+  --color-verde-salud: #4CAF50;
+
+  /* Semánticos, consistentes con el resto de apps */
+  --color-exito: #10B981;
+  --color-advertencia: #F59E0B;
+  --color-peligro: #E11D48;
+  --color-info: #0891B2;
+
+  /* Fondo de contenido (contraste con cards blancas) */
+  --color-fondo-app: #E4E9F3;
 }
 
 :root {
@@ -17,5 +36,16 @@
 body {
   margin: 0;
   font-family: 'Segoe UI', system-ui, sans-serif;
-  background: #f1f5f9;
+  background: #E4E9F3;
 }
+
+@keyframes modalOverlayIn {
+  0% { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes modalCardIn {
+  0% { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.animate-modal-overlay { animation: modalOverlayIn 0.15s ease-out; }
+.animate-modal-card { animation: modalCardIn 0.18s ease-out; }

@@ -7,26 +7,35 @@ import {
 } from 'recharts'
 import { supabase } from '../lib/supabase'
 import { useAuth, ROLE_LABELS } from '../lib/auth'
-import { MetricCard, Card, Badge } from '../components/ui'
+import { MetricCard, Card, Badge, FilterBar, Select, TableHead, TableEmpty, filaZebra, tooltipOscuroProps } from '../components/ui'
+import { MiniCalendario, type EventoCalendario } from '../components/MiniCalendario'
 import { ESTADO_VACANTE_LABELS, URGENCIA_LABELS, diasDesde } from '../lib/data'
 import type { Tables } from '../lib/database.types'
 
 type Vacante = Tables<'vacantes'> & { areas: { nombre: string } | null }
+type EntrevistaFila = Tables<'entrevistas'> & { postulaciones: { candidatos: { nombre: string } | null; vacantes: { cargo: string } | null } | null }
 
-const DONUT_COLORS = ['#2ECC71', '#3498DB', '#0D2D6B', '#F39C12', '#94a3b8']
+// Paleta "Salud y Bienestar": turquesa, azul institucional, verde, ámbar, gris
+const DONUT_COLORS = ['#009688', '#0D2D6B', '#4CAF50', '#F59E0B', '#94a3b8']
+const NIVELES_URGENCIA = ['bajo', 'medio', 'alto', 'critico'] as const
 
 export default function Dashboard() {
   const { perfil } = useAuth()
   const [vacantes, setVacantes] = useState<Vacante[]>([])
+  const [areas, setAreas] = useState<Tables<'areas'>[]>([])
+  const [entrevistas, setEntrevistas] = useState<EntrevistaFila[]>([])
   const [candidatosEnProceso, setCandidatosEnProceso] = useState(0)
   const [entrevistasHoy, setEntrevistasHoy] = useState(0)
   const [contratacionesMes, setContratacionesMes] = useState(0)
   const [cargando, setCargando] = useState(true)
+  const [filtroArea, setFiltroArea] = useState('')
 
   useEffect(() => {
     async function cargar() {
-      const [{ data: vac }, { count: postCount }, { count: entCount }, { count: contCount }] = await Promise.all([
+      const [{ data: vac }, { data: ar }, { data: ent }, { count: postCount }, { count: entCount }, { count: contCount }] = await Promise.all([
         supabase.from('vacantes').select('*, areas(nombre)').order('created_at', { ascending: false }),
+        supabase.from('areas').select('*').order('nombre'),
+        supabase.from('entrevistas').select('*, postulaciones(candidatos(nombre), vacantes(cargo))').order('fecha'),
         supabase.from('postulaciones').select('id', { count: 'exact', head: true })
           .in('estado', ['postulado', 'preseleccionado', 'entrevista', 'finalista']),
         supabase.from('entrevistas').select('id', { count: 'exact', head: true })
@@ -36,6 +45,8 @@ export default function Dashboard() {
           .gte('updated_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()),
       ])
       setVacantes((vac as Vacante[]) ?? [])
+      setAreas(ar ?? [])
+      setEntrevistas((ent as any) ?? [])
       setCandidatosEnProceso(postCount ?? 0)
       setEntrevistasHoy(entCount ?? 0)
       setContratacionesMes(contCount ?? 0)
@@ -44,13 +55,44 @@ export default function Dashboard() {
     cargar()
   }, [])
 
-  const activas = vacantes.filter((v) => !['cerrada', 'cancelada'].includes(v.estado))
+  const vacantesFiltradas = useMemo(
+    () => filtroArea ? vacantes.filter((v) => String(v.area_id) === filtroArea) : vacantes,
+    [vacantes, filtroArea]
+  )
+  const activas = vacantesFiltradas.filter((v) => !['cerrada', 'cancelada'].includes(v.estado))
+
+  const eventosCalendario: EventoCalendario[] = useMemo(() => entrevistas
+    .filter((e) => e.fecha)
+    .map((e) => ({
+      fecha: e.fecha!,
+      label: e.postulaciones?.candidatos?.nombre ?? 'Entrevista',
+      sub: e.postulaciones?.vacantes?.cargo,
+    })), [entrevistas])
+
+  const heatmapData = useMemo(() => {
+    const areasConDatos = areas.length ? areas.map((a) => a.nombre) : Array.from(new Set(vacantesFiltradas.map((v) => v.areas?.nombre ?? '—')))
+    const grid: Record<string, Record<string, number>> = {}
+    for (const nombreArea of areasConDatos) grid[nombreArea] = { bajo: 0, medio: 0, alto: 0, critico: 0 }
+    for (const v of activas) {
+      const nombreArea = v.areas?.nombre ?? '—'
+      if (!grid[nombreArea]) grid[nombreArea] = { bajo: 0, medio: 0, alto: 0, critico: 0 }
+      grid[nombreArea][v.nivel_urgencia]++
+    }
+    const max = Math.max(1, ...Object.values(grid).flatMap((r) => Object.values(r)))
+    return { filas: Object.entries(grid).filter(([, v]) => Object.values(v).some((n) => n > 0)), max }
+  }, [activas, areas, vacantesFiltradas])
+
+  function colorCelda(valor: number, max: number) {
+    if (!valor) return 'transparent'
+    const intensidad = 0.15 + (valor / max) * 0.75
+    return `rgba(0, 150, 136, ${intensidad})`
+  }
 
   const donutData = useMemo(() => {
     const grupos: Record<string, number> = {
       Aprobadas: 0, 'En Proceso': 0, Publicadas: 0, 'En Evaluación': 0, Cerradas: 0,
     }
-    for (const v of vacantes) {
+    for (const v of vacantesFiltradas) {
       if (v.estado === 'aprobada') grupos['Aprobadas']++
       else if (['pendiente_aprobacion', 'en_requisicion'].includes(v.estado)) grupos['En Proceso']++
       else if (v.estado === 'publicada') grupos['Publicadas']++
@@ -58,7 +100,7 @@ export default function Dashboard() {
       else if (['cerrada', 'contratada'].includes(v.estado)) grupos['Cerradas']++
     }
     return Object.entries(grupos).map(([name, value]) => ({ name, value })).filter((d) => d.value > 0)
-  }, [vacantes])
+  }, [vacantesFiltradas])
 
   const porArea = useMemo(() => {
     const grupos: Record<string, number> = {}
@@ -71,7 +113,7 @@ export default function Dashboard() {
 
   const tiempoCobertura = useMemo(() => {
     const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
-    const cerradas = vacantes.filter((v) => v.estado === 'contratada' && v.fecha_cierre)
+    const cerradas = vacantesFiltradas.filter((v) => v.estado === 'contratada' && v.fecha_cierre)
     const porMes: Record<string, number[]> = {}
     for (const v of cerradas) {
       const mes = meses[new Date(v.fecha_cierre!).getMonth()]
@@ -83,7 +125,7 @@ export default function Dashboard() {
       mes,
       dias: porMes[mes]?.length ? Math.round(porMes[mes].reduce((a, b) => a + b, 0) / porMes[mes].length) : null,
     })).filter((d) => d.dias !== null)
-  }, [vacantes])
+  }, [vacantesFiltradas])
 
   const criticas = activas
     .filter((v) => v.nivel_urgencia === 'alto' || v.nivel_urgencia === 'critico')
@@ -91,19 +133,27 @@ export default function Dashboard() {
     .slice(0, 6)
 
   const tiempoPromedio = useMemo(() => {
-    const contratadas = vacantes.filter((v) => v.estado === 'contratada' && v.fecha_cierre)
+    const contratadas = vacantesFiltradas.filter((v) => v.estado === 'contratada' && v.fecha_cierre)
     if (!contratadas.length) return null
     const total = contratadas.reduce((acc, v) => acc + (diasDesde(v.created_at) - diasDesde(v.fecha_cierre)), 0)
     return Math.round(total / contratadas.length)
-  }, [vacantes])
+  }, [vacantesFiltradas])
 
   if (cargando) return <div className="text-slate-500">Cargando dashboard…</div>
 
   return (
     <div>
-      <div className="mb-5">
-        <h1 className="text-lg font-semibold text-[#0D2D6B]">¡Bienvenido, {perfil?.nombre?.split(' ')[0]}!</h1>
-        <p className="text-sm text-slate-500">{perfil ? ROLE_LABELS[perfil.role] : ''}</p>
+      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-lg font-semibold text-brand">¡Bienvenido, {perfil?.nombre?.split(' ')[0]}!</h1>
+          <p className="text-sm text-slate-500">{perfil ? ROLE_LABELS[perfil.role] : ''}</p>
+        </div>
+        <FilterBar>
+          <Select label="Área" value={filtroArea} onChange={(e) => setFiltroArea(e.target.value)}>
+            <option value="">Todas las áreas</option>
+            {areas.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
+          </Select>
+        </FilterBar>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -122,7 +172,7 @@ export default function Dashboard() {
                 <Pie data={donutData} dataKey="value" nameKey="name" innerRadius={55} outerRadius={85} paddingAngle={2}>
                   {donutData.map((_, i) => <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />)}
                 </Pie>
-                <Tooltip />
+                <Tooltip {...tooltipOscuroProps} />
               </PieChart>
             </ResponsiveContainer>
           ) : <p className="py-8 text-center text-sm text-slate-400">Sin datos aún</p>}
@@ -138,7 +188,7 @@ export default function Dashboard() {
 
         <Card>
           <h2 className="mb-3 text-sm font-semibold text-slate-700">
-            Tiempo Promedio de Cobertura {tiempoPromedio != null && <span className="text-[#0D2D6B]">· {tiempoPromedio} días</span>}
+            Tiempo Promedio de Cobertura {tiempoPromedio != null && <span className="text-brand">· {tiempoPromedio} días</span>}
           </h2>
           {tiempoCobertura.length ? (
             <ResponsiveContainer width="100%" height={220}>
@@ -146,8 +196,8 @@ export default function Dashboard() {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="mes" tick={{ fontSize: 12 }} />
                 <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip />
-                <Line type="monotone" dataKey="dias" stroke="#16468E" strokeWidth={2} dot={{ r: 3 }} />
+                <Tooltip {...tooltipOscuroProps} />
+                <Line type="monotone" dataKey="dias" stroke="#009688" strokeWidth={2} dot={{ r: 3 }} />
               </LineChart>
             </ResponsiveContainer>
           ) : <p className="py-8 text-center text-sm text-slate-400">Aún no hay vacantes contratadas para calcular tendencia</p>}
@@ -161,7 +211,7 @@ export default function Dashboard() {
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                 <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12 }} />
                 <YAxis type="category" dataKey="area" width={100} tick={{ fontSize: 12 }} />
-                <Tooltip />
+                <Tooltip {...tooltipOscuroProps} />
                 <Bar dataKey="cantidad" fill="#0D2D6B" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -170,28 +220,64 @@ export default function Dashboard() {
 
         <Card>
           <h2 className="mb-3 text-sm font-semibold text-slate-700">Vacantes Críticas</h2>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto rounded-lg border border-slate-200">
             <table className="w-full text-left text-sm">
-              <thead className="text-xs uppercase text-slate-400">
-                <tr><th className="pb-2">Vacante</th><th className="pb-2">Área</th><th className="pb-2">Urgencia</th><th className="pb-2">Días</th></tr>
-              </thead>
+              <TableHead>
+                <th>Vacante</th><th>Área</th><th>Urgencia</th><th>Días</th>
+              </TableHead>
               <tbody>
-                {criticas.map((v) => (
-                  <tr key={v.id} className="border-t border-slate-100">
-                    <td className="py-2">
-                      <Link to={`/vacantes/${v.id}/aprobacion`} className="font-medium text-[#16468E] hover:underline">{v.cargo}</Link>
+                {criticas.map((v, i) => (
+                  <tr key={v.id} className={filaZebra(i)}>
+                    <td className="px-4 py-2">
+                      <Link to={`/vacantes/${v.id}/aprobacion`} className="font-medium text-brand-light hover:underline">{v.cargo}</Link>
                     </td>
-                    <td className="py-2 text-slate-500">{v.areas?.nombre}</td>
-                    <td className="py-2"><Badge texto={URGENCIA_LABELS[v.nivel_urgencia]} valor={v.nivel_urgencia} /></td>
-                    <td className="py-2 text-slate-500">{diasDesde(v.created_at)}</td>
+                    <td className="px-4 py-2 text-slate-500">{v.areas?.nombre}</td>
+                    <td className="px-4 py-2"><Badge texto={URGENCIA_LABELS[v.nivel_urgencia]} valor={v.nivel_urgencia} /></td>
+                    <td className="px-4 py-2 text-slate-500">{diasDesde(v.created_at)}</td>
                   </tr>
                 ))}
-                {!criticas.length && (
-                  <tr><td colSpan={4} className="py-6 text-center text-slate-400">Sin vacantes críticas</td></tr>
-                )}
+                {!criticas.length && <TableEmpty colSpan={4}>Sin vacantes críticas</TableEmpty>}
               </tbody>
             </table>
           </div>
+        </Card>
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <h2 className="mb-3 text-sm font-semibold text-slate-700">Mapa de Calor · Urgencia por Área</h2>
+          {heatmapData.filas.length ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-xs text-slate-400">
+                    <th className="pb-2 text-left font-medium">Área</th>
+                    {NIVELES_URGENCIA.map((n) => <th key={n} className="pb-2 font-medium capitalize">{URGENCIA_LABELS[n]}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {heatmapData.filas.map(([area, valores]) => (
+                    <tr key={area}>
+                      <td className="py-1 pr-3 text-xs font-medium text-slate-600">{area}</td>
+                      {NIVELES_URGENCIA.map((n) => (
+                        <td key={n} className="p-1">
+                          <div className="flex h-9 items-center justify-center rounded-md text-xs font-semibold text-brand"
+                            style={{ background: colorCelda(valores[n], heatmapData.max) }}>
+                            {valores[n] > 0 ? valores[n] : ''}
+                          </div>
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : <p className="py-8 text-center text-sm text-slate-400">Sin vacantes activas para mostrar</p>}
+        </Card>
+
+        <Card>
+          <h2 className="mb-2 text-sm font-semibold text-slate-700">Agenda de Entrevistas</h2>
+          <MiniCalendario eventos={eventosCalendario} />
         </Card>
       </div>
     </div>

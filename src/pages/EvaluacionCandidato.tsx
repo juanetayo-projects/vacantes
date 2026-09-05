@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
-import { PageHeader, Card, Badge, Boton, Modal, Select, Input, Textarea } from '../components/ui'
+import { PageHeader, Card, Badge, Boton, Modal, Select, Input, Textarea, TableHead, TableEmpty, filaZebra } from '../components/ui'
+import { useAlert } from '../lib/alerts'
 import { ESTADO_POSTULACION_LABELS, formatoFecha } from '../lib/data'
 import type { Tables } from '../lib/database.types'
 
@@ -19,6 +20,7 @@ export default function EvaluacionCandidato() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { perfil } = useAuth()
+  const { confirm, notify } = useAlert()
   const [tab, setTab] = useState<'resumen' | 'evaluaciones' | 'entrevistas' | 'documentos'>('resumen')
   const [postulacion, setPostulacion] = useState<Postulacion | null>(null)
   const [evaluaciones, setEvaluaciones] = useState<Evaluacion[]>([])
@@ -72,9 +74,16 @@ export default function EvaluacionCandidato() {
 
   async function cambiarEstado(estado: Postulacion['estado']) {
     if (!postulacion) return
+    const ok = await confirm(
+      estado === 'seleccionado'
+        ? `¿Confirmas que ${postulacion.candidatos.nombre} es el candidato seleccionado para ${postulacion.vacantes.cargo}?`
+        : `¿Confirmas que descartas a ${postulacion.candidatos.nombre} del proceso?`,
+      { titulo: 'Confirmar decisión', variante: estado === 'seleccionado' ? 'primario' : 'peligro', textoConfirmar: estado === 'seleccionado' ? 'Seleccionar' : 'No seleccionar' }
+    )
+    if (!ok) return
     await supabase.from('postulaciones').update({ estado, updated_at: new Date().toISOString() }).eq('id', postulacion.id)
     if (estado === 'seleccionado') navigate(`/postulaciones/${postulacion.id}/contratacion`)
-    else cargar()
+    else { notify('El candidato fue marcado como no seleccionado.', 'info'); cargar() }
   }
 
   async function agregarEntrevista() {
@@ -98,7 +107,7 @@ export default function EvaluacionCandidato() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-1">
           <div className="flex flex-col items-center text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#0D2D6B] text-lg font-semibold text-white">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-brand text-lg font-semibold text-white">
               {c.nombre.slice(0, 2).toUpperCase()}
             </div>
             <p className="mt-2 font-semibold text-slate-700">{c.nombre}</p>
@@ -111,7 +120,7 @@ export default function EvaluacionCandidato() {
             <div className="flex justify-between"><dt className="text-slate-400">Fuente</dt><dd className="capitalize">{c.fuente?.replace('_', ' ')}</dd></div>
           </dl>
           {puntajeFinal != null && (
-            <div className="mt-4 rounded-xl bg-gradient-to-br from-[#0D2D6B] to-[#16468E] p-4 text-center text-white">
+            <div className="mt-4 rounded-xl bg-gradient-to-br from-brand to-brand-light p-4 text-center text-white">
               <p className="text-xs opacity-80">Puntaje Final</p>
               <p className="text-2xl font-bold">{puntajeFinal.toFixed(1)} / 5.0</p>
             </div>
@@ -126,7 +135,7 @@ export default function EvaluacionCandidato() {
           <div className="mb-4 flex gap-2 border-b border-slate-200 text-sm">
             {(['resumen', 'evaluaciones', 'entrevistas', 'documentos'] as const).map((t) => (
               <button key={t} onClick={() => setTab(t)}
-                className={`px-3 py-2 font-medium capitalize ${tab === t ? 'border-b-2 border-[#0D2D6B] text-[#0D2D6B]' : 'text-slate-500'}`}>
+                className={`px-3 py-2 font-medium capitalize ${tab === t ? 'border-b-2 border-brand text-brand' : 'text-slate-500'}`}>
                 {t}
               </button>
             ))}
@@ -136,41 +145,39 @@ export default function EvaluacionCandidato() {
             <div className="text-sm text-slate-600">
               <p>Postulado el {formatoFecha(postulacion.fecha_postulacion)}.</p>
               {postulacion.notas && <p className="mt-2 rounded bg-slate-50 p-3">{postulacion.notas}</p>}
-              {c.hoja_vida_url && <a href={c.hoja_vida_url} target="_blank" className="mt-2 inline-block text-[#16468E] hover:underline">Ver hoja de vida</a>}
+              {c.hoja_vida_url && <a href={c.hoja_vida_url} target="_blank" className="mt-2 inline-block text-brand-light hover:underline">Ver hoja de vida</a>}
             </div>
           )}
 
           {tab === 'evaluaciones' && (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto rounded-lg border border-slate-200">
               <table className="w-full text-left text-sm">
-                <thead className="text-xs uppercase text-slate-400">
-                  <tr>
-                    <th className="pb-2">Competencia</th><th className="pb-2">Peso</th>
-                    <th className="pb-2">Autoevaluación</th><th className="pb-2">Evaluador 1</th>
-                    <th className="pb-2">Evaluador 2</th><th className="pb-2">Promedio</th>
-                  </tr>
-                </thead>
+                <TableHead>
+                  <th>Competencia</th><th>Peso</th>
+                  <th>Autoevaluación</th><th>Evaluador 1</th>
+                  <th>Evaluador 2</th><th>Promedio</th>
+                </TableHead>
                 <tbody>
-                  {evaluaciones.map((e) => (
-                    <tr key={e.id} className="border-t border-slate-100">
-                      <td className="py-2">{e.competencias.nombre}</td>
-                      <td className="py-2 text-slate-500">{e.peso}%</td>
+                  {evaluaciones.map((e, i) => (
+                    <tr key={e.id} className={filaZebra(i)}>
+                      <td className="px-4 py-2">{e.competencias.nombre}</td>
+                      <td className="px-4 py-2 text-slate-500">{e.peso}%</td>
                       {(['autoevaluacion', 'evaluador1', 'evaluador2'] as const).map((campo) => (
-                        <td key={campo} className="py-2">
+                        <td key={campo} className="px-4 py-2">
                           <input type="number" min={0} max={5} step={0.1} defaultValue={e[campo] ?? ''}
                             onBlur={(ev) => actualizarCampo(e.id, campo, ev.target.value)}
                             className="w-16 rounded border border-slate-300 px-1.5 py-1 text-xs" />
                         </td>
                       ))}
-                      <td className="py-2 font-semibold text-[#0D2D6B]">{e.promedio ?? '-'}</td>
+                      <td className="px-4 py-2 font-semibold text-brand">{e.promedio ?? '-'}</td>
                     </tr>
                   ))}
-                  {!evaluaciones.length && <tr><td colSpan={6} className="py-6 text-center text-slate-400">Esta vacante no tiene competencias configuradas</td></tr>}
+                  {!evaluaciones.length && <TableEmpty colSpan={6}>Esta vacante no tiene competencias configuradas</TableEmpty>}
                 </tbody>
                 {puntajeFinal != null && (
                   <tfoot>
-                    <tr><td colSpan={5} className="pt-3 text-right font-medium text-slate-600">Puntaje Final</td>
-                      <td className="pt-3 text-lg font-bold text-[#0D2D6B]">{puntajeFinal.toFixed(1)} / 5.0</td></tr>
+                    <tr><td colSpan={5} className="px-4 pt-3 text-right font-medium text-slate-600">Puntaje Final</td>
+                      <td className="px-4 pt-3 text-lg font-bold text-brand">{puntajeFinal.toFixed(1)} / 5.0</td></tr>
                   </tfoot>
                 )}
               </table>
@@ -212,7 +219,10 @@ export default function EvaluacionCandidato() {
           <Input label="Fecha" type="datetime-local" value={fechaEnt} onChange={(e) => setFechaEnt(e.target.value)} />
           <Input label="Resultado" value={resultadoEnt} onChange={(e) => setResultadoEnt(e.target.value)} placeholder="Continuar / Descartar / Recomendar…" />
           <Textarea label="Comentarios" rows={3} value={comentariosEnt} onChange={(e) => setComentariosEnt(e.target.value)} />
-          <Boton onClick={agregarEntrevista}>Guardar</Boton>
+          <div className="flex justify-end gap-2">
+            <Boton variante="secundario" onClick={() => setModalEntrevista(false)}>Cancelar</Boton>
+            <Boton onClick={agregarEntrevista}>Guardar</Boton>
+          </div>
         </div>
       </Modal>
     </div>
