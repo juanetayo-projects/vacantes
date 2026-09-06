@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
-import { Search, FileText, Send } from 'lucide-react'
+import { Search, FileText, Send, Plus, Upload } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAlert } from '../lib/alerts'
-import { PageHeader, Card, Boton, Modal, Select, Badge, TableShell, TableHead, TableEmpty, filaZebra } from '../components/ui'
+import { PageHeader, Card, Boton, Modal, Input, Select, Textarea, Badge, TableShell, TableHead, TableEmpty, filaZebra } from '../components/ui'
 import { formatoFecha } from '../lib/data'
 import type { Tables } from '../lib/database.types'
 
 type Candidato = Tables<'candidatos'> & { areas: { nombre: string } | null }
 type Vacante = Tables<'vacantes'>
+type Area = Tables<'areas'>
 
 const FUENTE_LABELS: Record<string, string> = {
   autopostulacion: 'Autopostulación',
@@ -18,15 +19,35 @@ const FUENTE_LABELS: Record<string, string> = {
   otros: 'Otros',
 }
 
+function leerComoBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve((reader.result as string).split(',')[1])
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
+const FORM_VACIO = {
+  nombre: '', tipo_documento: 'CC', numero_documento: '', email: '', telefono: '',
+  area_interes_id: '', cargo_interes: '', formacion: '', experiencia_anios: '', habilidades: '', fuente: 'referido' as Tables<'candidatos'>['fuente'],
+}
+
 export default function BancoHV() {
   const { notify } = useAlert()
   const [busqueda, setBusqueda] = useState('')
   const [buscando, setBuscando] = useState(false)
   const [resultados, setResultados] = useState<Candidato[]>([])
   const [vacantesActivas, setVacantesActivas] = useState<Vacante[]>([])
+  const [areas, setAreas] = useState<Area[]>([])
   const [modalPostular, setModalPostular] = useState<Candidato | null>(null)
   const [vacanteSeleccionada, setVacanteSeleccionada] = useState('')
   const [postulando, setPostulando] = useState(false)
+
+  const [modalNuevo, setModalNuevo] = useState(false)
+  const [formNuevo, setFormNuevo] = useState(FORM_VACIO)
+  const [cvNuevo, setCvNuevo] = useState<File | null>(null)
+  const [guardandoNuevo, setGuardandoNuevo] = useState(false)
 
   async function cargarRecientes() {
     setBuscando(true)
@@ -40,6 +61,8 @@ export default function BancoHV() {
     cargarRecientes()
     supabase.from('vacantes').select('*').in('estado', ['publicada', 'en_evaluacion']).order('cargo')
       .then(({ data }) => setVacantesActivas(data ?? []))
+    supabase.from('areas').select('*').eq('activo', true).order('nombre')
+      .then(({ data }) => setAreas(data ?? []))
   }, [])
 
   async function buscar() {
@@ -84,9 +107,64 @@ export default function BancoHV() {
     setModalPostular(null)
   }
 
+  function abrirNuevo() {
+    setFormNuevo(FORM_VACIO)
+    setCvNuevo(null)
+    setModalNuevo(true)
+  }
+
+  function setCampoNuevo(campo: keyof typeof formNuevo, valor: string) {
+    setFormNuevo((f) => ({ ...f, [campo]: valor }))
+  }
+
+  async function subirCV(candidatoId: number) {
+    const { data: sesion } = await supabase.auth.getSession()
+    const { data, error } = await supabase.functions.invoke('portal-candidato', {
+      body: { accion: 'subir_hoja_de_vida_staff', candidatoId, cvBase64: await leerComoBase64(cvNuevo!), cvNombreArchivo: cvNuevo!.name },
+      headers: { Authorization: `Bearer ${sesion.session?.access_token}` },
+    })
+    if (error || data?.error) notify(`El candidato se guardó, pero no se pudo subir la hoja de vida: ${data?.error ?? error?.message}`, 'warning')
+  }
+
+  async function guardarNuevo() {
+    if (!formNuevo.nombre.trim()) { notify('El nombre es obligatorio.', 'error'); return }
+    setGuardandoNuevo(true)
+    const datos = {
+      nombre: formNuevo.nombre, tipo_documento: formNuevo.numero_documento.trim() ? formNuevo.tipo_documento : null,
+      numero_documento: formNuevo.numero_documento.trim() || null, email: formNuevo.email || null, telefono: formNuevo.telefono || null,
+      formacion: formNuevo.formacion || null, experiencia_anios: formNuevo.experiencia_anios ? Number(formNuevo.experiencia_anios) : null,
+      cargo_interes: formNuevo.cargo_interes || null, area_interes_id: formNuevo.area_interes_id ? Number(formNuevo.area_interes_id) : null,
+      habilidades: formNuevo.habilidades || null,
+    }
+
+    let candidatoId: number | undefined
+    if (datos.numero_documento) {
+      const { data: existente } = await supabase.from('candidatos').select('id, nombre')
+        .eq('numero_documento', datos.numero_documento).maybeSingle()
+      if (existente) {
+        candidatoId = existente.id
+        await supabase.from('candidatos').update(datos).eq('id', candidatoId)
+        notify(`${existente.nombre} ya estaba en el banco con ese documento; se actualizó su información.`, 'info')
+      }
+    }
+    if (candidatoId === undefined) {
+      const { data: nuevo, error } = await supabase.from('candidatos').insert({ ...datos, fuente: formNuevo.fuente }).select('id').single()
+      if (error) { notify('No se pudo registrar el candidato.', 'error'); setGuardandoNuevo(false); return }
+      candidatoId = nuevo.id
+    }
+
+    if (cvNuevo) await subirCV(candidatoId)
+
+    setGuardandoNuevo(false)
+    setModalNuevo(false)
+    notify('Candidato registrado en el Banco de HV.', 'success')
+    cargarRecientes()
+  }
+
   return (
     <div>
-      <PageHeader titulo="Banco de Hojas de Vida" subtitulo="Candidatos disponibles, incluidas las autopostulaciones públicas" />
+      <PageHeader titulo="Banco de Hojas de Vida" subtitulo="Candidatos disponibles, incluidas las autopostulaciones públicas"
+        acciones={<Boton onClick={abrirNuevo}><Plus size={15} className="mr-1 inline" />Registrar Candidato</Boton>} />
 
       <Card className="mb-4">
         <div className="flex gap-2">
@@ -141,6 +219,50 @@ export default function BancoHV() {
             <Boton variante="secundario" onClick={() => setModalPostular(null)}>Cancelar</Boton>
             <Boton disabled={!vacanteSeleccionada || postulando} onClick={confirmarPostular}>{postulando ? 'Guardando…' : 'Postular'}</Boton>
           </div>
+        </div>
+      </Modal>
+
+      <Modal open={modalNuevo} onClose={() => setModalNuevo(false)} titulo="Registrar Candidato" ancho="max-w-lg">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Input label="Nombre completo" className="sm:col-span-2" value={formNuevo.nombre} onChange={(e) => setCampoNuevo('nombre', e.target.value)} required />
+          <div className="flex gap-2">
+            <div className="w-24">
+              <Select label="Tipo doc." value={formNuevo.tipo_documento} onChange={(e) => setCampoNuevo('tipo_documento', e.target.value)}>
+                <option value="CC">CC</option><option value="CE">CE</option><option value="TI">TI</option><option value="PA">PA</option>
+              </Select>
+            </div>
+            <div className="flex-1">
+              <Input label="Número de documento" value={formNuevo.numero_documento} onChange={(e) => setCampoNuevo('numero_documento', e.target.value)} />
+            </div>
+          </div>
+          <Select label="Fuente" value={formNuevo.fuente ?? 'referido'} onChange={(e) => setCampoNuevo('fuente', e.target.value)}>
+            <option value="portal_empleo">Correo de vacantes</option>
+            <option value="referido">Referido</option>
+            <option value="linkedin">LinkedIn</option>
+            <option value="pagina_web">Página Web</option>
+            <option value="otros">Otros</option>
+          </Select>
+          <Input label="Correo" type="email" value={formNuevo.email} onChange={(e) => setCampoNuevo('email', e.target.value)} />
+          <Input label="Teléfono" value={formNuevo.telefono} onChange={(e) => setCampoNuevo('telefono', e.target.value)} />
+          <Select label="Área de interés" value={formNuevo.area_interes_id} onChange={(e) => setCampoNuevo('area_interes_id', e.target.value)}>
+            <option value="">Sin especificar</option>
+            {areas.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
+          </Select>
+          <Input label="Cargo de interés" value={formNuevo.cargo_interes} onChange={(e) => setCampoNuevo('cargo_interes', e.target.value)} />
+          <Input label="Formación" value={formNuevo.formacion} onChange={(e) => setCampoNuevo('formacion', e.target.value)} />
+          <Input label="Años de experiencia" type="number" min={0} value={formNuevo.experiencia_anios} onChange={(e) => setCampoNuevo('experiencia_anios', e.target.value)} />
+          <Textarea label="Habilidades / certificaciones" className="sm:col-span-2" rows={2} value={formNuevo.habilidades} onChange={(e) => setCampoNuevo('habilidades', e.target.value)} />
+          <label className="flex cursor-pointer items-center justify-between rounded-lg border border-slate-300 px-3 py-2.5 text-sm sm:col-span-2">
+            <span className="text-slate-600">Hoja de vida (PDF)</span>
+            <span className="flex items-center gap-1 text-xs font-medium text-brand-light">
+              <Upload size={13} /> {cvNuevo?.name.slice(0, 20) ?? 'Adjuntar'}
+            </span>
+            <input type="file" accept="application/pdf" className="hidden" onChange={(e) => setCvNuevo(e.target.files?.[0] ?? null)} />
+          </label>
+        </div>
+        <div className="mt-4 flex justify-end gap-2 border-t border-slate-200 pt-4">
+          <Boton variante="secundario" onClick={() => setModalNuevo(false)}>Cancelar</Boton>
+          <Boton disabled={guardandoNuevo} onClick={guardarNuevo}>{guardandoNuevo ? 'Guardando…' : 'Registrar'}</Boton>
         </div>
       </Modal>
     </div>

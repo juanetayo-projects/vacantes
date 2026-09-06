@@ -186,6 +186,22 @@ Deno.serve(async (req) => {
     return json(200, { ok: true })
   }
 
+  if (accion === 'subir_hoja_de_vida_staff') {
+    // Uso interno de staff autenticado: sube la HV de un candidato ya creado desde el Banco de HV.
+    const authHeader = req.headers.get('Authorization') ?? ''
+    const caller = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } })
+    const { data: { user } } = await caller.auth.getUser()
+    if (!user) return json(401, { error: 'No autenticado' })
+    const { candidatoId, cvBase64, cvNombreArchivo } = body
+    const bytes = Uint8Array.from(atob(cvBase64), (c) => c.charCodeAt(0))
+    const path = `manual/${candidatoId}-${Date.now()}-${cvNombreArchivo ?? 'hv.pdf'}`
+    const { error: upErr } = await admin.storage.from(BUCKET).upload(path, bytes, { contentType: 'application/octet-stream', upsert: true })
+    if (upErr) return json(400, { error: `No se pudo subir la hoja de vida: ${upErr.message}` })
+    await admin.from('candidatos').update({ hoja_vida_url: path }).eq('id', candidatoId)
+    return json(200, { ok: true, path })
+  }
+
   if (accion === 'firmar_documento') {
     // Uso interno de staff autenticado (no del candidato): requiere JWT válido con is_staff().
     const authHeader = req.headers.get('Authorization') ?? ''
