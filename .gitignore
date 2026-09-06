@@ -10,3 +10,4 @@ scripts/sync/.env
 .DS_Store
 docs/
 paletas/
+supabase/.temp
