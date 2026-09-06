@@ -35,12 +35,65 @@ Deno.serve(async (req) => {
     if (error) return json(400, { error })
     const { data: p } = await admin.from('postulaciones')
       .select('*, candidatos(nombre), vacantes(cargo, codigo)').eq('id', tokenRow!.postulacion_id).single()
-    return json(200, {
+    const respuesta: Record<string, unknown> = {
       tipo: tokenRow!.tipo,
       candidato: p?.candidatos?.nombre,
       cargo: p?.vacantes?.cargo,
       codigo: p?.vacantes?.codigo,
-    })
+    }
+    if (tokenRow!.tipo === 'entrevista') {
+      const { data: ent } = await admin.from('entrevistas').select('fecha, lugar, estado_cita')
+        .eq('postulacion_id', tokenRow!.postulacion_id).eq('estado_cita', 'propuesta')
+        .order('created_at', { ascending: false }).limit(1).maybeSingle()
+      respuesta.fecha = ent?.fecha; respuesta.lugar = ent?.lugar
+    }
+    if (tokenRow!.tipo === 'medicina_laboral') {
+      const { data: cita } = await admin.from('citas_medicina_laboral').select('fecha_hora, lugar')
+        .eq('postulacion_id', tokenRow!.postulacion_id).maybeSingle()
+      respuesta.fecha = cita?.fecha_hora; respuesta.lugar = cita?.lugar
+    }
+    return json(200, respuesta)
+  }
+
+  if (accion === 'responder_cita') {
+    const { tokenRow, error } = await validarToken()
+    if (error) return json(400, { error })
+    if (tokenRow!.tipo !== 'entrevista' && tokenRow!.tipo !== 'medicina_laboral') return json(400, { error: 'Enlace inválido para esta acción.' })
+    const { decision } = body as { decision: 'confirmar' | 'rechazar' | 'aplazar' }
+    const nuevoEstado = decision === 'confirmar' ? 'confirmada' : decision === 'rechazar' ? 'rechazada_candidato' : 'aplazada'
+    if (tokenRow!.tipo === 'entrevista') {
+      await admin.from('entrevistas').update({ estado_cita: nuevoEstado })
+        .eq('postulacion_id', tokenRow!.postulacion_id).eq('estado_cita', 'propuesta')
+      await admin.from('historial_estados').insert({
+        entidad_tipo: 'entrevista', entidad_id: tokenRow!.postulacion_id, estado_nuevo: nuevoEstado, comentario: 'Respuesta del candidato',
+      })
+    } else {
+      await admin.from('citas_medicina_laboral').update({ estado: nuevoEstado })
+        .eq('postulacion_id', tokenRow!.postulacion_id)
+      await admin.from('historial_estados').insert({
+        entidad_tipo: 'cita_medica', entidad_id: tokenRow!.postulacion_id, estado_nuevo: nuevoEstado, comentario: 'Respuesta del candidato',
+      })
+    }
+    await admin.from('candidato_tokens').update({ usado_at: new Date().toISOString() }).eq('token', token)
+    return json(200, { ok: true, estado: nuevoEstado })
+  }
+
+  if (accion === 'enviar_perfil_sociodemografico') {
+    const { tokenRow, error } = await validarToken('perfil_sociodemografico')
+    if (error) return json(400, { error })
+    const { datos } = body
+    const { error: insError } = await admin.from('perfil_sociodemografico').insert({ postulacion_id: tokenRow!.postulacion_id, ...datos })
+    if (insError) return json(400, { error: insError.message })
+    await admin.from('candidato_tokens').update({ usado_at: new Date().toISOString() }).eq('token', token)
+    const { data: p } = await admin.from('postulaciones').select('vacantes(reclutador_id, solicitante_id), candidatos(nombre)').eq('id', tokenRow!.postulacion_id).single()
+    const destinatario = (p?.vacantes as any)?.reclutador_id ?? (p?.vacantes as any)?.solicitante_id
+    if (destinatario) {
+      await admin.from('notificaciones').insert({
+        usuario_id: destinatario, titulo: `Perfil sociodemográfico recibido · ${(p?.candidatos as any)?.nombre}`,
+        mensaje: 'El candidato diligenció su perfil sociodemográfico. Continúa con la vinculación (ARL, EPS, Pensión).', tipo: 'info',
+      })
+    }
+    return json(200, { ok: true })
   }
 
   if (accion === 'enviar_documentos') {

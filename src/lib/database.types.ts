@@ -198,6 +198,57 @@ export type Database = {
         }
         Relationships: []
       }
+      citas_medicina_laboral: {
+        Row: {
+          agendado_por: string | null
+          created_at: string
+          estado: string
+          fecha_hora: string | null
+          id: number
+          lugar: string | null
+          observaciones_medico: string | null
+          postulacion_id: number
+          resultado_medico: string | null
+        }
+        Insert: {
+          agendado_por?: string | null
+          created_at?: string
+          estado?: string
+          fecha_hora?: string | null
+          id?: never
+          lugar?: string | null
+          observaciones_medico?: string | null
+          postulacion_id: number
+          resultado_medico?: string | null
+        }
+        Update: {
+          agendado_por?: string | null
+          created_at?: string
+          estado?: string
+          fecha_hora?: string | null
+          id?: never
+          lugar?: string | null
+          observaciones_medico?: string | null
+          postulacion_id?: number
+          resultado_medico?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "citas_medicina_laboral_agendado_por_fkey"
+            columns: ["agendado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "citas_medicina_laboral_postulacion_id_fkey"
+            columns: ["postulacion_id"]
+            isOneToOne: false
+            referencedRelation: "postulaciones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       convocatorias_pendientes: {
         Row: {
           abierta_por: string
@@ -323,8 +374,10 @@ export type Database = {
           comentarios: string | null
           created_at: string
           entrevistador_id: string | null
+          estado_cita: string
           fecha: string | null
           id: number
+          lugar: string | null
           postulacion_id: number
           puntaje: number | null
           resultado: string | null
@@ -335,8 +388,10 @@ export type Database = {
           comentarios?: string | null
           created_at?: string
           entrevistador_id?: string | null
+          estado_cita?: string
           fecha?: string | null
           id?: never
+          lugar?: string | null
           postulacion_id: number
           puntaje?: number | null
           resultado?: string | null
@@ -347,8 +402,10 @@ export type Database = {
           comentarios?: string | null
           created_at?: string
           entrevistador_id?: string | null
+          estado_cita?: string
           fecha?: string | null
           id?: never
+          lugar?: string | null
           postulacion_id?: number
           puntaje?: number | null
           resultado?: string | null
@@ -659,6 +716,62 @@ export type Database = {
           ve_todas_areas?: boolean
         }
         Relationships: []
+      }
+      perfil_sociodemografico: {
+        Row: {
+          arl: string | null
+          contacto_emergencia_nombre: string | null
+          contacto_emergencia_telefono: string | null
+          created_at: string
+          eps: string | null
+          estado_civil: string | null
+          estrato: number | null
+          fondo_pension: string | null
+          id: number
+          nivel_educativo: string | null
+          personas_a_cargo: number | null
+          postulacion_id: number
+          tipo_vivienda: string | null
+        }
+        Insert: {
+          arl?: string | null
+          contacto_emergencia_nombre?: string | null
+          contacto_emergencia_telefono?: string | null
+          created_at?: string
+          eps?: string | null
+          estado_civil?: string | null
+          estrato?: number | null
+          fondo_pension?: string | null
+          id?: never
+          nivel_educativo?: string | null
+          personas_a_cargo?: number | null
+          postulacion_id: number
+          tipo_vivienda?: string | null
+        }
+        Update: {
+          arl?: string | null
+          contacto_emergencia_nombre?: string | null
+          contacto_emergencia_telefono?: string | null
+          created_at?: string
+          eps?: string | null
+          estado_civil?: string | null
+          estrato?: number | null
+          fondo_pension?: string | null
+          id?: never
+          nivel_educativo?: string | null
+          personas_a_cargo?: number | null
+          postulacion_id?: number
+          tipo_vivienda?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "perfil_sociodemografico_postulacion_id_fkey"
+            columns: ["postulacion_id"]
+            isOneToOne: true
+            referencedRelation: "postulaciones"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       postulaciones: {
         Row: {
@@ -1077,6 +1190,54 @@ export type Database = {
             columns: ["vacante_id"]
             isOneToOne: false
             referencedRelation: "vacantes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vinculacion_seguridad_social: {
+        Row: {
+          arl: string | null
+          created_at: string
+          eps: string | null
+          fecha_vinculacion: string | null
+          fondo_pension: string | null
+          gestionado_por: string | null
+          id: number
+          postulacion_id: number
+        }
+        Insert: {
+          arl?: string | null
+          created_at?: string
+          eps?: string | null
+          fecha_vinculacion?: string | null
+          fondo_pension?: string | null
+          gestionado_por?: string | null
+          id?: never
+          postulacion_id: number
+        }
+        Update: {
+          arl?: string | null
+          created_at?: string
+          eps?: string | null
+          fecha_vinculacion?: string | null
+          fondo_pension?: string | null
+          gestionado_por?: string | null
+          id?: never
+          postulacion_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vinculacion_seguridad_social_gestionado_por_fkey"
+            columns: ["gestionado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vinculacion_seguridad_social_postulacion_id_fkey"
+            columns: ["postulacion_id"]
+            isOneToOne: true
+            referencedRelation: "postulaciones"
             referencedColumns: ["id"]
           },
         ]

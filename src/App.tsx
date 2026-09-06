@@ -2,7 +2,7 @@ import { HashRouter, Routes, Route, Navigate, NavLink, useNavigate } from 'react
 import { useState, type ReactElement, type ReactNode } from 'react'
 import {
   Home, Briefcase, FileText, ClipboardList, Users, ClipboardCheck,
-  UserCheck, GraduationCap, BarChart3, Settings, LogOut, Menu,
+  UserCheck, GraduationCap, BarChart3, Settings, LogOut, Menu, HeartPulse, Stethoscope,
 } from 'lucide-react'
 import { AuthProvider, useAuth } from './lib/auth'
 import { AlertProvider } from './lib/alerts'
@@ -12,6 +12,8 @@ import NotificacionesBell from './components/NotificacionesBell'
 import Login from './pages/Login'
 import Reset from './pages/Reset'
 import PostulacionDocumentos from './pages/publico/PostulacionDocumentos'
+import PostulacionCita from './pages/publico/PostulacionCita'
+import PostulacionPerfilSociodemografico from './pages/publico/PostulacionPerfilSociodemografico'
 import Dashboard from './pages/Dashboard'
 import VacantesActivas from './pages/VacantesActivas'
 import NuevaSolicitud from './pages/NuevaSolicitud'
@@ -26,6 +28,8 @@ import Induccion from './pages/Induccion'
 import Reportes from './pages/Reportes'
 import PerfilUsuario from './pages/PerfilUsuario'
 import AdminUsuarios from './pages/admin/Usuarios'
+import AgendaMedicinaLaboral from './pages/AgendaMedicinaLaboral'
+import EvaluacionMedicaLaboral from './pages/EvaluacionMedicaLaboral'
 
 function SoloInvitados({ children }: { children: ReactElement }) {
   const { session, loading } = useAuth()
@@ -85,6 +89,24 @@ function Layout({ children }: { children: ReactNode }) {
               <Icon size={18} /> {label}
             </NavLink>
           ))}
+          {(perfil?.role === 'admin' || perfil?.role === 'agenda_citas') && (
+            <NavLink to="/agenda-medicina-laboral" onClick={() => setMenuAbierto(false)}
+              className={({ isActive }) =>
+                `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
+                  isActive ? 'bg-white/15 font-medium' : 'text-white/80 hover:bg-white/10'
+                }`}>
+              <HeartPulse size={18} /> Agenda Médico Laboral
+            </NavLink>
+          )}
+          {(perfil?.role === 'admin' || perfil?.role === 'medico_laboral') && (
+            <NavLink to="/evaluacion-medica-laboral" onClick={() => setMenuAbierto(false)}
+              className={({ isActive }) =>
+                `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
+                  isActive ? 'bg-white/15 font-medium' : 'text-white/80 hover:bg-white/10'
+                }`}>
+              <Stethoscope size={18} /> Evaluación Médica
+            </NavLink>
+          )}
           {(perfil?.role === 'admin' || perfil?.perm_configuracion) && (
             <NavLink to="/admin/usuarios" onClick={() => setMenuAbierto(false)}
               className={({ isActive }) =>
@@ -132,6 +154,8 @@ function Rutas() {
       <Route path="/login" element={<SoloInvitados><Login /></SoloInvitados>} />
       <Route path="/reset" element={<Reset />} />
       <Route path="/postulacion/documentos/:token" element={<PostulacionDocumentos />} />
+      <Route path="/postulacion/cita/:token" element={<PostulacionCita />} />
+      <Route path="/postulacion/perfil-sociodemografico/:token" element={<PostulacionPerfilSociodemografico />} />
       <Route path="/*" element={
         <Guard>
           <Layout>
@@ -154,6 +178,8 @@ function Rutas() {
               <Route path="/reportes" element={<Reportes />} />
               <Route path="/perfil" element={<PerfilUsuario />} />
               <Route path="/admin/usuarios" element={<AdminUsuarios />} />
+              <Route path="/agenda-medicina-laboral" element={<AgendaMedicinaLaboral />} />
+              <Route path="/evaluacion-medica-laboral" element={<EvaluacionMedicaLaboral />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Layout>

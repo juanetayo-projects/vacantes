@@ -10,12 +10,35 @@ const json = (s: number, b: unknown) =>
 
 const SITE_URL = 'https://juanetayo-projects.github.io/vacantes'
 
-const PLANTILLAS: Record<string, { asunto: (v: { cargo: string }) => string; titulo: string; cuerpo: (v: { candidato: string; cargo: string }) => string; boton: string }> = {
+type Vars = { candidato: string; cargo: string }
+const PLANTILLAS: Record<string, { asunto: (v: Vars) => string; titulo: string; cuerpo: (v: Vars) => string; boton: string; ruta: string }> = {
   documentos: {
     asunto: (v) => `Documentación requerida · ${v.cargo}`,
     titulo: 'Continuemos con tu proceso de selección',
     cuerpo: (v) => `Hola ${v.candidato}, nos alegra que quieras continuar en el proceso de selección para el cargo de <strong>${v.cargo}</strong> en la Clínica de Alta Complejidad Santa Bárbara. Para seguir, por favor ingresa al siguiente enlace y adjunta la documentación solicitada.`,
     boton: 'Cargar mis documentos',
+    ruta: 'documentos',
+  },
+  entrevista: {
+    asunto: (v) => `Invitación a entrevista · ${v.cargo}`,
+    titulo: 'Te invitamos a una entrevista',
+    cuerpo: (v) => `Hola ${v.candidato}, queremos invitarte a una entrevista para el cargo de <strong>${v.cargo}</strong>. Ingresa al siguiente enlace para ver la fecha y lugar propuestos, y confirmar tu asistencia.`,
+    boton: 'Ver y confirmar cita',
+    ruta: 'cita',
+  },
+  medicina_laboral: {
+    asunto: (v) => `Cita de medicina laboral · ${v.cargo}`,
+    titulo: 'Cita de medicina laboral',
+    cuerpo: (v) => `Hola ${v.candidato}, como parte del proceso de selección para el cargo de <strong>${v.cargo}</strong>, te hemos agendado una cita con el médico laboral. Ingresa al siguiente enlace para ver los detalles y confirmar tu asistencia.`,
+    boton: 'Ver y confirmar cita',
+    ruta: 'cita',
+  },
+  perfil_sociodemografico: {
+    asunto: (v) => `Perfil sociodemográfico · ${v.cargo}`,
+    titulo: '¡Felicitaciones! Continuemos con tu vinculación',
+    cuerpo: (v) => `Hola ${v.candidato}, tu concepto de medicina laboral fue favorable para el cargo de <strong>${v.cargo}</strong>. Para continuar, por favor diligencia tu perfil sociodemográfico en el siguiente enlace.`,
+    boton: 'Diligenciar perfil',
+    ruta: 'perfil-sociodemografico',
   },
 }
 
@@ -40,7 +63,7 @@ Deno.serve(async (req) => {
   const resendKey = Deno.env.get('RESEND_API_KEY')
   if (!resendKey) return json(500, { error: 'RESEND_API_KEY no está configurada en este proyecto de Supabase.' })
 
-  const link = `${SITE_URL}/#/postulacion/${tipo}/${token}`
+  const link = `${SITE_URL}/#/postulacion/${plantilla.ruta}/${token}`
   const html = `
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#E4E9F3;padding:40px 0;font-family:Arial,Helvetica,sans-serif;">
     <tr><td align="center">
