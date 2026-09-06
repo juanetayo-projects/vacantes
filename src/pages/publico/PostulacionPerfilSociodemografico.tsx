@@ -18,6 +18,7 @@ export default function PostulacionPerfilSociodemografico() {
   })
 
   useEffect(() => {
+    setCargando(true); setError(''); setInfo(null)
     supabase.functions.invoke('portal-candidato', { body: { accion: 'validar_token', token } })
       .then(({ data, error }) => {
         if (error || data?.error) setError(data?.error ?? 'Este enlace no es válido.')
@@ -50,7 +51,8 @@ export default function PostulacionPerfilSociodemografico() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-brand to-brand-dark2 p-4">
       <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
-        <div className="bg-gradient-to-r from-brand to-brand-light px-6 py-5 text-center text-white">
+        <div className="flex flex-col items-center gap-2 bg-gradient-to-r from-brand to-brand-light px-6 py-5 text-center text-white">
+          <img src={`${import.meta.env.BASE_URL}images/logo_cacsb_blanc.png`} alt="Clínica Santa Bárbara" className="h-10" />
           <p className="text-lg font-semibold">Santa Bárbara</p>
           <p className="text-xs text-white/80">Procesos de Selección · Talento Humano</p>
         </div>
