@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from './lib/auth'
 import { AlertProvider } from './lib/alerts'
 import { supabase } from './lib/supabase'
 import NotificacionesBell from './components/NotificacionesBell'
+import EstadoAutopostulacion from './components/EstadoAutopostulacion'
 
 import Login from './pages/Login'
 import Reset from './pages/Reset'
@@ -133,6 +134,7 @@ function Layout({ children }: { children: ReactNode }) {
             Sistema de Gestión de Vacantes y Procesos de Selección
           </div>
           <div className="flex items-center gap-3">
+            <EstadoAutopostulacion />
             <NotificacionesBell />
             <NavLink to="/perfil" className="flex items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-xs font-semibold text-white ring-1 ring-white/30">

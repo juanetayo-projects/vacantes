@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Plus, KeyRound, Trash2, Pencil } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth, ROLE_LABELS } from '../../lib/auth'
@@ -24,7 +25,10 @@ const PERMISOS_CATALOGO = [
 export default function AdminUsuarios() {
   const { perfil } = useAuth()
   const { confirm, notify } = useAlert()
-  const [tab, setTab] = useState<'usuarios' | 'perfiles' | 'areas' | 'procesos' | 'competencias' | 'banco_hv'>('usuarios')
+  const [searchParams] = useSearchParams()
+  const tabInicial = searchParams.get('tab')
+  const [tab, setTab] = useState<'usuarios' | 'perfiles' | 'areas' | 'procesos' | 'competencias' | 'banco_hv'>(
+    tabInicial === 'banco_hv' ? 'banco_hv' : 'usuarios')
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
   const [perfilesCatalogo, setPerfilesCatalogo] = useState<Perfil[]>([])
   const [areas, setAreas] = useState<Area[]>([])
