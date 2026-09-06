@@ -226,7 +226,7 @@ export function Input({ label, ...props }: { label?: string } & InputHTMLAttribu
     <label className="flex flex-col gap-1 text-sm">
       {label && <span className="font-medium text-slate-600">{label}</span>}
       <input {...props}
-        className={`rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-light focus:outline-none focus:ring-1 focus:ring-brand-light ${props.className ?? ''}`} />
+        className={`rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-light focus:outline-none focus:ring-1 focus:ring-brand-light ${props.className ?? ''}`} />
     </label>
   )
 }
@@ -239,7 +239,7 @@ export function InputMoneda({ label, value, onChange, className = '', ...props }
   return (
     <label className="flex flex-col gap-1 text-sm">
       {label && <span className="font-medium text-slate-600">{label}</span>}
-      <div className={`flex items-center rounded-lg border border-slate-300 focus-within:border-brand-light focus-within:ring-1 focus-within:ring-brand-light ${className}`}>
+      <div className={`flex items-center rounded-lg border border-slate-300 bg-white focus-within:border-brand-light focus-within:ring-1 focus-within:ring-brand-light ${className}`}>
         <span className="pl-3 text-sm text-slate-400">$</span>
         <input {...props} type="text" inputMode="numeric" value={formateado}
           onChange={(e) => onChange(e.target.value.replace(/\D/g, ''))}
@@ -256,7 +256,7 @@ export function Select({ label, children, ...props }:
     <label className="flex flex-col gap-1 text-sm">
       {label && <span className="font-medium text-slate-600">{label}</span>}
       <select {...props}
-        className={`rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-light focus:outline-none focus:ring-1 focus:ring-brand-light ${props.className ?? ''}`}>
+        className={`rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-light focus:outline-none focus:ring-1 focus:ring-brand-light ${props.className ?? ''}`}>
         {children}
       </select>
     </label>
@@ -268,7 +268,7 @@ export function Textarea({ label, ...props }: { label?: string } & TextareaHTMLA
     <label className="flex flex-col gap-1 text-sm">
       {label && <span className="font-medium text-slate-600">{label}</span>}
       <textarea {...props}
-        className={`rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-light focus:outline-none focus:ring-1 focus:ring-brand-light ${props.className ?? ''}`} />
+        className={`rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-light focus:outline-none focus:ring-1 focus:ring-brand-light ${props.className ?? ''}`} />
     </label>
   )
 }

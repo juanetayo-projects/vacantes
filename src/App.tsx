@@ -2,7 +2,7 @@ import { HashRouter, Routes, Route, Navigate, NavLink, useNavigate } from 'react
 import { useState, type ReactElement, type ReactNode } from 'react'
 import {
   Home, Briefcase, FileText, ClipboardList, Users, ClipboardCheck,
-  UserCheck, GraduationCap, BarChart3, Settings, LogOut, Menu, HeartPulse, Stethoscope,
+  UserCheck, GraduationCap, BarChart3, Settings, LogOut, Menu, HeartPulse, Stethoscope, Archive,
 } from 'lucide-react'
 import { AuthProvider, useAuth } from './lib/auth'
 import { AlertProvider } from './lib/alerts'
@@ -23,6 +23,7 @@ import VacanteAprobacion from './pages/VacanteAprobacion'
 import Requisiciones from './pages/Requisiciones'
 import CandidatosKanban from './pages/CandidatosKanban'
 import ListaCandidatos from './pages/ListaCandidatos'
+import BancoHV from './pages/BancoHV'
 import EvaluacionCandidato from './pages/EvaluacionCandidato'
 import Contratacion from './pages/Contratacion'
 import Induccion from './pages/Induccion'
@@ -56,6 +57,7 @@ const NAV = [
   { to: '/solicitudes', label: 'Solicitudes', icon: FileText },
   { to: '/requisiciones', label: 'Requisiciones', icon: ClipboardList },
   { to: '/candidatos', label: 'Candidatos', icon: Users },
+  { to: '/banco-hv', label: 'Banco de HV', icon: Archive },
   { to: '/evaluaciones', label: 'Evaluaciones', icon: ClipboardCheck },
   { to: '/contrataciones', label: 'Contrataciones', icon: UserCheck },
   { to: '/induccion', label: 'Inducción', icon: GraduationCap },
@@ -171,6 +173,7 @@ function Rutas() {
               <Route path="/vacantes/:id/candidatos" element={<CandidatosKanban />} />
               <Route path="/requisiciones" element={<Requisiciones />} />
               <Route path="/candidatos" element={<ListaCandidatos />} />
+              <Route path="/banco-hv" element={<BancoHV />} />
               <Route path="/evaluaciones" element={<ListaCandidatos modo="evaluaciones" />} />
               <Route path="/postulaciones/:id/evaluacion" element={<EvaluacionCandidato />} />
               <Route path="/contrataciones" element={<ListaCandidatos modo="contrataciones" />} />

@@ -90,14 +90,14 @@ export default function PostulacionAutopostulacion() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-brand to-brand-dark2 p-4">
-      <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
+    <div className="flex min-h-screen justify-center bg-gradient-to-b from-brand to-brand-dark2 sm:items-center sm:p-4">
+      <div className="min-h-screen w-full bg-white sm:min-h-0 sm:max-w-md sm:overflow-hidden sm:rounded-2xl sm:shadow-2xl">
         <div className="flex flex-col items-center gap-2 bg-gradient-to-r from-brand to-brand-light px-6 py-5 text-center text-white">
           <img src={`${import.meta.env.BASE_URL}images/logo_cacsb_blanc.png`} alt="Clínica Santa Bárbara" className="h-10" />
           <p className="text-lg font-semibold">Santa Bárbara</p>
           <p className="text-xs text-white/80">Banco de Hojas de Vida · Talento Humano</p>
         </div>
-        <div className="max-h-[80vh] overflow-y-auto p-6">
+        <div className="p-6">
           {cargando && <p className="text-center text-sm text-slate-500">Cargando…</p>}
 
           {!cargando && errorCarga && (
