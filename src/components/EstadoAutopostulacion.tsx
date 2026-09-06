@@ -8,9 +8,29 @@ export default function EstadoAutopostulacion() {
   const { perfil } = useAuth()
   const [abierta, setAbierta] = useState<boolean | null>(null)
 
-  useEffect(() => {
+  function cargar() {
     supabase.from('configuracion_publica').select('autopostulacion_abierta').eq('id', true).single()
       .then(({ data }) => setAbierta(data?.autopostulacion_abierta ?? null))
+  }
+
+  useEffect(() => {
+    cargar()
+
+    const canal = supabase
+      .channel('configuracion_publica_header')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'configuracion_publica' },
+        (payload) => setAbierta((payload.new as { autopostulacion_abierta: boolean }).autopostulacion_abierta))
+      .subscribe()
+
+    function alVolverAEnfocar() {
+      if (document.visibilityState === 'visible') cargar()
+    }
+    document.addEventListener('visibilitychange', alVolverAEnfocar)
+
+    return () => {
+      supabase.removeChannel(canal)
+      document.removeEventListener('visibilitychange', alVolverAEnfocar)
+    }
   }, [])
 
   if (abierta === null) return null
