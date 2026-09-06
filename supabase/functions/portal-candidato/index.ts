@@ -115,6 +115,77 @@ Deno.serve(async (req) => {
     return json(200, { ok: true })
   }
 
+  if (accion === 'estado_autopostulacion') {
+    const [{ data }, { data: areas }] = await Promise.all([
+      admin.from('configuracion_publica').select('autopostulacion_abierta, mensaje_cerrado').eq('id', true).single(),
+      admin.from('areas').select('id, nombre').eq('activo', true).order('nombre'),
+    ])
+    return json(200, { abierta: data?.autopostulacion_abierta ?? false, mensaje: data?.mensaje_cerrado ?? '', areas: areas ?? [] })
+  }
+
+  if (accion === 'autopostularse') {
+    const { honeypot, turnstileToken, datos, cvBase64, cvNombreArchivo } = body
+    if (honeypot) return json(200, { ok: true }) // trampa para bots: fingimos éxito sin escribir nada
+
+    const { data: config } = await admin.from('configuracion_publica').select('autopostulacion_abierta').eq('id', true).single()
+    if (!config?.autopostulacion_abierta) return json(400, { error: 'En este momento no estamos recibiendo hojas de vida.' })
+
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'desconocida'
+    const haceUnaHora = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+    const { count } = await admin.from('intentos_autopostulacion').select('*', { count: 'exact', head: true })
+      .eq('ip', ip).gte('created_at', haceUnaHora)
+    if ((count ?? 0) >= 5) return json(429, { error: 'Demasiados intentos desde esta conexión. Intenta de nuevo más tarde.' })
+    await admin.from('intentos_autopostulacion').insert({ ip })
+
+    const secret = Deno.env.get('TURNSTILE_SECRET_KEY')
+    if (!secret) return json(500, { error: 'Verificación anti-bot no configurada.' })
+    const form = new FormData()
+    form.append('secret', secret)
+    form.append('response', turnstileToken ?? '')
+    form.append('remoteip', ip)
+    const captchaRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', { method: 'POST', body: form })
+    const captcha = await captchaRes.json()
+    if (!captcha.success) return json(400, { error: 'No se pudo verificar que eres una persona. Intenta de nuevo.' })
+
+    if (!datos?.nombre?.trim()) return json(400, { error: 'El nombre es obligatorio.' })
+
+    let candidatoId: number | undefined
+    const documento = datos.numero_documento?.trim() || null
+    if (documento) {
+      const { data: existente } = await admin.from('candidatos').select('id').eq('numero_documento', documento).maybeSingle()
+      if (existente) {
+        candidatoId = existente.id
+        await admin.from('candidatos').update({
+          nombre: datos.nombre, email: datos.email || null, telefono: datos.telefono || null,
+          formacion: datos.formacion || null, experiencia_anios: datos.experiencia_anios || null,
+          cargo_interes: datos.cargo_interes || null, area_interes_id: datos.area_interes_id || null,
+          habilidades: datos.habilidades || null,
+        }).eq('id', candidatoId)
+      }
+    }
+    if (candidatoId === undefined) {
+      const { data: nuevo, error: insError } = await admin.from('candidatos').insert({
+        nombre: datos.nombre, tipo_documento: datos.tipo_documento || null, numero_documento: documento,
+        email: datos.email || null, telefono: datos.telefono || null, formacion: datos.formacion || null,
+        experiencia_anios: datos.experiencia_anios || null, cargo_interes: datos.cargo_interes || null,
+        area_interes_id: datos.area_interes_id || null, habilidades: datos.habilidades || null,
+        fuente: 'autopostulacion',
+      }).select('id').single()
+      if (insError) return json(400, { error: insError.message })
+      candidatoId = nuevo.id
+    }
+
+    if (cvBase64) {
+      const bytes = Uint8Array.from(atob(cvBase64), (c) => c.charCodeAt(0))
+      const path = `autopostulacion/${candidatoId}-${Date.now()}-${cvNombreArchivo ?? 'hv.pdf'}`
+      const { error: upErr } = await admin.storage.from(BUCKET).upload(path, bytes, { contentType: 'application/octet-stream', upsert: true })
+      if (upErr) return json(400, { error: `No se pudo subir la hoja de vida: ${upErr.message}` })
+      await admin.from('candidatos').update({ hoja_vida_url: path }).eq('id', candidatoId)
+    }
+
+    return json(200, { ok: true })
+  }
+
   if (accion === 'firmar_documento') {
     // Uso interno de staff autenticado (no del candidato): requiere JWT válido con is_staff().
     const authHeader = req.headers.get('Authorization') ?? ''

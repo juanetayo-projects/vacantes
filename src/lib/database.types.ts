@@ -143,11 +143,14 @@ export type Database = {
       }
       candidatos: {
         Row: {
+          area_interes_id: number | null
+          cargo_interes: string | null
           created_at: string
           email: string | null
           experiencia_anios: number | null
           formacion: string | null
           fuente: Database["public"]["Enums"]["fuente_candidato_enum"] | null
+          habilidades: string | null
           hoja_vida_url: string | null
           id: number
           nombre: string
@@ -156,11 +159,14 @@ export type Database = {
           tipo_documento: string | null
         }
         Insert: {
+          area_interes_id?: number | null
+          cargo_interes?: string | null
           created_at?: string
           email?: string | null
           experiencia_anios?: number | null
           formacion?: string | null
           fuente?: Database["public"]["Enums"]["fuente_candidato_enum"] | null
+          habilidades?: string | null
           hoja_vida_url?: string | null
           id?: never
           nombre: string
@@ -169,11 +175,14 @@ export type Database = {
           tipo_documento?: string | null
         }
         Update: {
+          area_interes_id?: number | null
+          cargo_interes?: string | null
           created_at?: string
           email?: string | null
           experiencia_anios?: number | null
           formacion?: string | null
           fuente?: Database["public"]["Enums"]["fuente_candidato_enum"] | null
+          habilidades?: string | null
           hoja_vida_url?: string | null
           id?: never
           nombre?: string
@@ -181,7 +190,15 @@ export type Database = {
           telefono?: string | null
           tipo_documento?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "candidatos_area_interes_id_fkey"
+            columns: ["area_interes_id"]
+            isOneToOne: false
+            referencedRelation: "areas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       citas_medicina_laboral: {
         Row: {
@@ -254,6 +271,38 @@ export type Database = {
           tipo?: string
         }
         Relationships: []
+      }
+      configuracion_publica: {
+        Row: {
+          actualizado_por: string | null
+          autopostulacion_abierta: boolean
+          id: boolean
+          mensaje_cerrado: string
+          updated_at: string
+        }
+        Insert: {
+          actualizado_por?: string | null
+          autopostulacion_abierta?: boolean
+          id?: boolean
+          mensaje_cerrado?: string
+          updated_at?: string
+        }
+        Update: {
+          actualizado_por?: string | null
+          autopostulacion_abierta?: boolean
+          id?: boolean
+          mensaje_cerrado?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "configuracion_publica_actualizado_por_fkey"
+            columns: ["actualizado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       convocatorias_pendientes: {
         Row: {
@@ -573,6 +622,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      intentos_autopostulacion: {
+        Row: {
+          created_at: string
+          id: number
+          ip: string
+        }
+        Insert: {
+          created_at?: string
+          id?: never
+          ip: string
+        }
+        Update: {
+          created_at?: string
+          id?: never
+          ip?: string
+        }
+        Relationships: []
       }
       notificaciones: {
         Row: {
@@ -1402,6 +1469,7 @@ export type Database = {
         | "linkedin"
         | "pagina_web"
         | "otros"
+        | "autopostulacion"
       nivel_urgencia_enum: "bajo" | "medio" | "alto" | "critico"
       rol_usuario:
         | "admin"
@@ -1586,6 +1654,7 @@ export const Constants = {
         "linkedin",
         "pagina_web",
         "otros",
+        "autopostulacion",
       ],
       nivel_urgencia_enum: ["bajo", "medio", "alto", "critico"],
       rol_usuario: [

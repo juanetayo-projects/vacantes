@@ -14,6 +14,7 @@ import Reset from './pages/Reset'
 import PostulacionDocumentos from './pages/publico/PostulacionDocumentos'
 import PostulacionCita from './pages/publico/PostulacionCita'
 import PostulacionPerfilSociodemografico from './pages/publico/PostulacionPerfilSociodemografico'
+import PostulacionAutopostulacion from './pages/publico/PostulacionAutopostulacion'
 import Dashboard from './pages/Dashboard'
 import VacantesActivas from './pages/VacantesActivas'
 import NuevaSolicitud from './pages/NuevaSolicitud'
@@ -156,6 +157,7 @@ function Rutas() {
       <Route path="/postulacion/documentos/:token" element={<PostulacionDocumentos />} />
       <Route path="/postulacion/cita/:token" element={<PostulacionCita />} />
       <Route path="/postulacion/perfil-sociodemografico/:token" element={<PostulacionPerfilSociodemografico />} />
+      <Route path="/postulacion/autopostulacion" element={<PostulacionAutopostulacion />} />
       <Route path="/*" element={
         <Guard>
           <Layout>

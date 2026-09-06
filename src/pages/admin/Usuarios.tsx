@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Plus, KeyRound, Trash2, Pencil } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth, ROLE_LABELS } from '../../lib/auth'
-import { PageHeader, Boton, Modal, Input, Select, Badge, TableShell, TableHead, TableEmpty, filaZebra } from '../../components/ui'
+import { PageHeader, Card, Boton, Modal, Input, Select, Textarea, Badge, TableShell, TableHead, TableEmpty, filaZebra } from '../../components/ui'
 import { useAlert } from '../../lib/alerts'
 import type { Tables, TablesUpdate } from '../../lib/database.types'
 
@@ -24,12 +24,15 @@ const PERMISOS_CATALOGO = [
 export default function AdminUsuarios() {
   const { perfil } = useAuth()
   const { confirm, notify } = useAlert()
-  const [tab, setTab] = useState<'usuarios' | 'perfiles' | 'areas' | 'procesos' | 'competencias'>('usuarios')
+  const [tab, setTab] = useState<'usuarios' | 'perfiles' | 'areas' | 'procesos' | 'competencias' | 'banco_hv'>('usuarios')
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
   const [perfilesCatalogo, setPerfilesCatalogo] = useState<Perfil[]>([])
   const [areas, setAreas] = useState<Area[]>([])
   const [procesos, setProcesos] = useState<Proceso[]>([])
   const [competencias, setCompetencias] = useState<Competencia[]>([])
+  const [configPublica, setConfigPublica] = useState<Tables<'configuracion_publica'> | null>(null)
+  const [mensajeCerrado, setMensajeCerrado] = useState('')
+  const [guardandoConfig, setGuardandoConfig] = useState(false)
   const [modalUsuario, setModalUsuario] = useState(false)
   const [modalEditar, setModalEditar] = useState<Usuario | null>(null)
   const [modalReset, setModalReset] = useState<Usuario | null>(null)
@@ -49,14 +52,16 @@ export default function AdminUsuarios() {
   const puedeAdministrar = perfil?.role === 'admin' || !!perfil?.perm_configuracion
 
   async function cargar() {
-    const [{ data: u }, { data: pf }, { data: a }, { data: pr }, { data: c }] = await Promise.all([
+    const [{ data: u }, { data: pf }, { data: a }, { data: pr }, { data: c }, { data: cfg }] = await Promise.all([
       supabase.from('profiles').select('*, areas!profiles_area_id_fkey(nombre), procesos(nombre)').order('nombre'),
       supabase.from('perfiles').select('*').order('id'),
       supabase.from('areas').select('*').order('nombre'),
       supabase.from('procesos').select('*').order('orden'),
       supabase.from('competencias').select('*').order('nombre'),
+      supabase.from('configuracion_publica').select('*').eq('id', true).single(),
     ])
     setUsuarios((u as any) ?? []); setPerfilesCatalogo(pf ?? []); setAreas(a ?? []); setProcesos(pr ?? []); setCompetencias(c ?? [])
+    setConfigPublica(cfg ?? null); setMensajeCerrado(cfg?.mensaje_cerrado ?? '')
   }
 
   useEffect(() => { cargar() }, [])
@@ -234,6 +239,28 @@ export default function AdminUsuarios() {
     else { notify(`Se eliminó la competencia ${c.nombre}.`, 'success'); cargar() }
   }
 
+  // --- Banco de HV: autopostulación pública ---
+  async function toggleAutopostulacion() {
+    if (!configPublica || !perfil) return
+    const nuevoValor = !configPublica.autopostulacion_abierta
+    setConfigPublica({ ...configPublica, autopostulacion_abierta: nuevoValor })
+    const { error } = await supabase.from('configuracion_publica')
+      .update({ autopostulacion_abierta: nuevoValor, actualizado_por: perfil.id }).eq('id', true)
+    if (error) { notify('No se pudo cambiar el estado.', 'error'); setConfigPublica(configPublica); return }
+    notify(nuevoValor ? 'Se abrió la recepción pública de hojas de vida.' : 'Se cerró la recepción pública de hojas de vida.', 'success')
+  }
+
+  async function guardarMensajeCerrado() {
+    if (!perfil) return
+    setGuardandoConfig(true)
+    const { error } = await supabase.from('configuracion_publica')
+      .update({ mensaje_cerrado: mensajeCerrado, actualizado_por: perfil.id }).eq('id', true)
+    setGuardandoConfig(false)
+    if (error) { notify('No se pudo guardar el mensaje.', 'error'); return }
+    notify('Mensaje guardado correctamente.', 'success')
+    cargar()
+  }
+
   if (!puedeAdministrar) {
     return <p className="text-slate-500">No tienes permisos de administración.</p>
   }
@@ -243,9 +270,9 @@ export default function AdminUsuarios() {
       <PageHeader titulo="Configuración" subtitulo="Usuarios, perfiles, áreas y competencias" />
 
       <div className="mb-4 flex gap-2 border-b border-slate-300 text-sm">
-        {(['usuarios', 'perfiles', 'areas', 'procesos', 'competencias'] as const).map((t) => (
+        {(['usuarios', 'perfiles', 'areas', 'procesos', 'competencias', 'banco_hv'] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)}
-            className={`px-3 py-2 font-medium capitalize ${tab === t ? 'border-b-2 border-brand text-brand' : 'text-slate-500'}`}>{t}</button>
+            className={`px-3 py-2 font-medium capitalize ${tab === t ? 'border-b-2 border-brand text-brand' : 'text-slate-500'}`}>{t === 'banco_hv' ? 'Banco de HV' : t}</button>
         ))}
       </div>
 
@@ -394,6 +421,40 @@ export default function AdminUsuarios() {
             </tbody>
           </TableShell>
         </div>
+      )}
+
+      {tab === 'banco_hv' && (
+        <Card titulo="Autopostulación pública">
+          <div className="flex flex-col gap-4">
+            <p className="text-sm text-slate-500">
+              Controla si cualquier persona puede enviar su hoja de vida desde una página pública
+              (sin cuenta), para ir construyendo el Banco de HV antes de que exista una vacante puntual.
+            </p>
+            <div className="flex items-center justify-between rounded-lg border border-slate-200 p-3">
+              <div>
+                <p className="text-sm font-medium text-slate-700">
+                  Recepción de hojas de vida {configPublica?.autopostulacion_abierta ? 'abierta' : 'cerrada'}
+                </p>
+                <p className="text-xs text-slate-400">
+                  {configPublica?.autopostulacion_abierta
+                    ? 'Cualquier persona puede enviar su HV desde la página pública ahora mismo.'
+                    : 'La página pública muestra el mensaje de cierre y no acepta envíos.'}
+                </p>
+              </div>
+              <button onClick={toggleAutopostulacion}>
+                <Badge texto={configPublica?.autopostulacion_abierta ? 'Abierto' : 'Cerrado'}
+                  valor={configPublica?.autopostulacion_abierta ? 'aprobado' : 'rechazado'} />
+              </button>
+            </div>
+            <Textarea label="Mensaje cuando está cerrado" rows={2} value={mensajeCerrado}
+              onChange={(e) => setMensajeCerrado(e.target.value)} />
+            <div className="flex justify-end">
+              <Boton disabled={guardandoConfig} onClick={guardarMensajeCerrado}>
+                {guardandoConfig ? 'Guardando…' : 'Guardar mensaje'}
+              </Boton>
+            </div>
+          </div>
+        </Card>
       )}
 
       <Modal open={modalUsuario} onClose={() => setModalUsuario(false)} titulo="Nuevo Usuario" ancho="max-w-lg">
