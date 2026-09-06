@@ -151,7 +151,9 @@ export type Database = {
           hoja_vida_url: string | null
           id: number
           nombre: string
+          numero_documento: string | null
           telefono: string | null
+          tipo_documento: string | null
         }
         Insert: {
           created_at?: string
@@ -162,7 +164,9 @@ export type Database = {
           hoja_vida_url?: string | null
           id?: never
           nombre: string
+          numero_documento?: string | null
           telefono?: string | null
+          tipo_documento?: string | null
         }
         Update: {
           created_at?: string
@@ -173,28 +177,9 @@ export type Database = {
           hoja_vida_url?: string | null
           id?: never
           nombre?: string
+          numero_documento?: string | null
           telefono?: string | null
-        }
-        Relationships: []
-      }
-      competencias: {
-        Row: {
-          id: number
-          nombre: string
-          peso_defecto: number | null
-          tipo: string
-        }
-        Insert: {
-          id?: never
-          nombre: string
-          peso_defecto?: number | null
-          tipo?: string
-        }
-        Update: {
-          id?: never
-          nombre?: string
-          peso_defecto?: number | null
-          tipo?: string
+          tipo_documento?: string | null
         }
         Relationships: []
       }
@@ -249,6 +234,27 @@ export type Database = {
           },
         ]
       }
+      competencias: {
+        Row: {
+          id: number
+          nombre: string
+          peso_defecto: number | null
+          tipo: string
+        }
+        Insert: {
+          id?: never
+          nombre: string
+          peso_defecto?: number | null
+          tipo?: string
+        }
+        Update: {
+          id?: never
+          nombre?: string
+          peso_defecto?: number | null
+          tipo?: string
+        }
+        Relationships: []
+      }
       convocatorias_pendientes: {
         Row: {
           abierta_por: string
@@ -298,41 +304,6 @@ export type Database = {
           },
         ]
       }
-      documentos_postulacion: {
-        Row: {
-          created_at: string
-          estado: string
-          id: number
-          postulacion_id: number
-          tipo: string
-          url: string | null
-        }
-        Insert: {
-          created_at?: string
-          estado?: string
-          id?: never
-          postulacion_id: number
-          tipo: string
-          url?: string | null
-        }
-        Update: {
-          created_at?: string
-          estado?: string
-          id?: never
-          postulacion_id?: number
-          tipo?: string
-          url?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "documentos_postulacion_postulacion_id_fkey"
-            columns: ["postulacion_id"]
-            isOneToOne: false
-            referencedRelation: "postulaciones"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       documentos_contratacion: {
         Row: {
           created_at: string
@@ -361,6 +332,41 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "documentos_contratacion_postulacion_id_fkey"
+            columns: ["postulacion_id"]
+            isOneToOne: false
+            referencedRelation: "postulaciones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documentos_postulacion: {
+        Row: {
+          created_at: string
+          estado: string
+          id: number
+          postulacion_id: number
+          tipo: string
+          url: string | null
+        }
+        Insert: {
+          created_at?: string
+          estado?: string
+          id?: never
+          postulacion_id: number
+          tipo: string
+          url?: string | null
+        }
+        Update: {
+          created_at?: string
+          estado?: string
+          id?: never
+          postulacion_id?: number
+          tipo?: string
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documentos_postulacion_postulacion_id_fkey"
             columns: ["postulacion_id"]
             isOneToOne: false
             referencedRelation: "postulaciones"
@@ -672,51 +678,6 @@ export type Database = {
           },
         ]
       }
-      perfiles: {
-        Row: {
-          activo: boolean
-          codigo: string
-          created_at: string
-          descripcion: string | null
-          id: number
-          nombre: string
-          perm_administracion: boolean
-          perm_aprobaciones: boolean
-          perm_configuracion: boolean
-          perm_gestion_vacantes: boolean
-          perm_reportes: boolean
-          ve_todas_areas: boolean
-        }
-        Insert: {
-          activo?: boolean
-          codigo: string
-          created_at?: string
-          descripcion?: string | null
-          id?: never
-          nombre: string
-          perm_administracion?: boolean
-          perm_aprobaciones?: boolean
-          perm_configuracion?: boolean
-          perm_gestion_vacantes?: boolean
-          perm_reportes?: boolean
-          ve_todas_areas?: boolean
-        }
-        Update: {
-          activo?: boolean
-          codigo?: string
-          created_at?: string
-          descripcion?: string | null
-          id?: never
-          nombre?: string
-          perm_administracion?: boolean
-          perm_aprobaciones?: boolean
-          perm_configuracion?: boolean
-          perm_gestion_vacantes?: boolean
-          perm_reportes?: boolean
-          ve_todas_areas?: boolean
-        }
-        Relationships: []
-      }
       perfil_sociodemografico: {
         Row: {
           arl: string | null
@@ -772,6 +733,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      perfiles: {
+        Row: {
+          activo: boolean
+          codigo: string
+          created_at: string
+          descripcion: string | null
+          id: number
+          nombre: string
+          perm_administracion: boolean
+          perm_aprobaciones: boolean
+          perm_configuracion: boolean
+          perm_gestion_vacantes: boolean
+          perm_reportes: boolean
+          ve_todas_areas: boolean
+        }
+        Insert: {
+          activo?: boolean
+          codigo: string
+          created_at?: string
+          descripcion?: string | null
+          id?: never
+          nombre: string
+          perm_administracion?: boolean
+          perm_aprobaciones?: boolean
+          perm_configuracion?: boolean
+          perm_gestion_vacantes?: boolean
+          perm_reportes?: boolean
+          ve_todas_areas?: boolean
+        }
+        Update: {
+          activo?: boolean
+          codigo?: string
+          created_at?: string
+          descripcion?: string | null
+          id?: never
+          nombre?: string
+          perm_administracion?: boolean
+          perm_aprobaciones?: boolean
+          perm_configuracion?: boolean
+          perm_gestion_vacantes?: boolean
+          perm_reportes?: boolean
+          ve_todas_areas?: boolean
+        }
+        Relationships: []
       }
       postulaciones: {
         Row: {
@@ -1194,54 +1200,6 @@ export type Database = {
           },
         ]
       }
-      vinculacion_seguridad_social: {
-        Row: {
-          arl: string | null
-          created_at: string
-          eps: string | null
-          fecha_vinculacion: string | null
-          fondo_pension: string | null
-          gestionado_por: string | null
-          id: number
-          postulacion_id: number
-        }
-        Insert: {
-          arl?: string | null
-          created_at?: string
-          eps?: string | null
-          fecha_vinculacion?: string | null
-          fondo_pension?: string | null
-          gestionado_por?: string | null
-          id?: never
-          postulacion_id: number
-        }
-        Update: {
-          arl?: string | null
-          created_at?: string
-          eps?: string | null
-          fecha_vinculacion?: string | null
-          fondo_pension?: string | null
-          gestionado_por?: string | null
-          id?: never
-          postulacion_id?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "vinculacion_seguridad_social_gestionado_por_fkey"
-            columns: ["gestionado_por"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "vinculacion_seguridad_social_postulacion_id_fkey"
-            columns: ["postulacion_id"]
-            isOneToOne: true
-            referencedRelation: "postulaciones"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       vacantes: {
         Row: {
           area_id: number
@@ -1339,6 +1297,54 @@ export type Database = {
             columns: ["solicitante_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vinculacion_seguridad_social: {
+        Row: {
+          arl: string | null
+          created_at: string
+          eps: string | null
+          fecha_vinculacion: string | null
+          fondo_pension: string | null
+          gestionado_por: string | null
+          id: number
+          postulacion_id: number
+        }
+        Insert: {
+          arl?: string | null
+          created_at?: string
+          eps?: string | null
+          fecha_vinculacion?: string | null
+          fondo_pension?: string | null
+          gestionado_por?: string | null
+          id?: never
+          postulacion_id: number
+        }
+        Update: {
+          arl?: string | null
+          created_at?: string
+          eps?: string | null
+          fecha_vinculacion?: string | null
+          fondo_pension?: string | null
+          gestionado_por?: string | null
+          id?: never
+          postulacion_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vinculacion_seguridad_social_gestionado_por_fkey"
+            columns: ["gestionado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vinculacion_seguridad_social_postulacion_id_fkey"
+            columns: ["postulacion_id"]
+            isOneToOne: true
+            referencedRelation: "postulaciones"
             referencedColumns: ["id"]
           },
         ]

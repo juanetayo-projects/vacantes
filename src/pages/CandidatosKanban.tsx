@@ -33,6 +33,8 @@ export default function CandidatosKanban() {
   const [postulaciones, setPostulaciones] = useState<Postulacion[]>([])
   const [modalNuevo, setModalNuevo] = useState(false)
   const [nombre, setNombre] = useState('')
+  const [tipoDocumento, setTipoDocumento] = useState<Tables<'candidatos'>['tipo_documento']>('CC')
+  const [numeroDocumento, setNumeroDocumento] = useState('')
   const [email, setEmail] = useState('')
   const [telefono, setTelefono] = useState('')
   const [fuente, setFuente] = useState<Tables<'candidatos'>['fuente']>('portal_empleo')
@@ -86,16 +88,34 @@ export default function CandidatosKanban() {
     cargar()
   }
 
+  function cerrarModalNuevo() {
+    setModalNuevo(false)
+    setNombre(''); setNumeroDocumento(''); setEmail(''); setTelefono('')
+  }
+
   async function crearCandidato() {
     if (!nombre.trim()) return
     setGuardando(true)
-    const { data: cand, error } = await supabase.from('candidatos').insert({ nombre, email, telefono, fuente }).select('id').single()
+    if (numeroDocumento.trim()) {
+      const { data: existente } = await supabase.from('candidatos').select('id, nombre')
+        .eq('numero_documento', numeroDocumento.trim()).maybeSingle()
+      if (existente) {
+        await supabase.from('postulaciones').insert({ vacante_id: Number(id), candidato_id: existente.id, estado: 'postulado' })
+        notify(`${existente.nombre} ya estaba en el banco de HV con ese documento; se agregó a esta vacante.`, 'info')
+        setGuardando(false)
+        cerrarModalNuevo()
+        cargar()
+        return
+      }
+    }
+    const { data: cand, error } = await supabase.from('candidatos')
+      .insert({ nombre, email, telefono, fuente, tipo_documento: numeroDocumento.trim() ? tipoDocumento : null, numero_documento: numeroDocumento.trim() || null })
+      .select('id').single()
     if (!error && cand) {
       await supabase.from('postulaciones').insert({ vacante_id: Number(id), candidato_id: cand.id, estado: 'postulado' })
     }
     setGuardando(false)
-    setModalNuevo(false)
-    setNombre(''); setEmail(''); setTelefono('')
+    cerrarModalNuevo()
     cargar()
   }
 
@@ -109,8 +129,9 @@ export default function CandidatosKanban() {
     if (!busqueda.trim()) return
     setBuscando(true)
     const idsYaEnVacante = postulaciones.map((p) => p.candidato_id)
+    const b = busqueda.trim()
     let q = supabase.from('candidatos').select('*')
-      .or(`nombre.ilike.%${busqueda}%,formacion.ilike.%${busqueda}%`)
+      .or(`nombre.ilike.%${b}%,formacion.ilike.%${b}%,numero_documento.ilike.%${b}%,telefono.ilike.%${b}%,email.ilike.%${b}%`)
       .limit(20)
     if (idsYaEnVacante.length) q = q.not('id', 'in', `(${idsYaEnVacante.join(',')})`)
     const { data } = await q
@@ -233,6 +254,19 @@ export default function CandidatosKanban() {
       <Modal open={modalNuevo} onClose={() => setModalNuevo(false)} titulo="Agregar Candidato">
         <div className="flex flex-col gap-3">
           <Input label="Nombre completo" value={nombre} onChange={(e) => setNombre(e.target.value)} required />
+          <div className="flex gap-2">
+            <div className="w-28">
+              <Select label="Tipo doc." value={tipoDocumento ?? 'CC'} onChange={(e) => setTipoDocumento(e.target.value as any)}>
+                <option value="CC">CC</option>
+                <option value="CE">CE</option>
+                <option value="TI">TI</option>
+                <option value="PA">PA</option>
+              </Select>
+            </div>
+            <div className="flex-1">
+              <Input label="Número de documento" value={numeroDocumento} onChange={(e) => setNumeroDocumento(e.target.value)} />
+            </div>
+          </div>
           <Input label="Correo" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
           <Input label="Teléfono" value={telefono} onChange={(e) => setTelefono(e.target.value)} />
           <Select label="Fuente" value={fuente ?? 'portal_empleo'} onChange={(e) => setFuente(e.target.value as any)}>
@@ -251,11 +285,11 @@ export default function CandidatosKanban() {
 
       <Modal open={modalBanco} onClose={() => setModalBanco(false)} titulo="Banco de Hojas de Vida" ancho="max-w-lg">
         <div className="flex flex-col gap-3">
-          <p className="text-xs text-slate-500">Busca en el banco de candidatos existentes por nombre o formación.</p>
+          <p className="text-xs text-slate-500">Busca en el banco de candidatos existentes por nombre, documento, teléfono, correo o formación.</p>
           <div className="flex gap-2">
             <input value={busqueda} onChange={(e) => setBusqueda(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), buscarEnBanco())}
-              placeholder="Ej: enfermería, Juan Pérez…"
+              placeholder="Ej: enfermería, Juan Pérez, 10203040…"
               className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm" />
             <Boton onClick={buscarEnBanco} disabled={buscando}>{buscando ? 'Buscando…' : 'Buscar'}</Boton>
           </div>
@@ -264,8 +298,10 @@ export default function CandidatosKanban() {
               {resultados.map((c) => (
                 <div key={c.id} className="flex items-center justify-between border-b border-slate-100 px-3 py-2 last:border-0">
                   <div>
-                    <p className="text-sm font-medium text-slate-700">{c.nombre}</p>
-                    <p className="text-xs text-slate-400">{c.formacion ?? c.email ?? '-'}</p>
+                    <p className="text-sm font-medium text-slate-700">
+                      {c.nombre} {c.numero_documento && <span className="font-normal text-slate-400">· {c.tipo_documento} {c.numero_documento}</span>}
+                    </p>
+                    <p className="text-xs text-slate-400">{c.formacion ?? c.email ?? c.telefono ?? '-'}</p>
                   </div>
                   <Boton className="!px-2 !py-1 text-xs" onClick={() => marcarCoincidencia(c)}>+ Agregar</Boton>
                 </div>
