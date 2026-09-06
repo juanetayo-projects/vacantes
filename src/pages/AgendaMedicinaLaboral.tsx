@@ -27,7 +27,7 @@ export default function AgendaMedicinaLaboral() {
   async function cargar() {
     const { data } = await supabase.from('citas_medicina_laboral')
       .select('*, postulaciones(*, candidatos(*), vacantes(*))')
-      .not('estado', 'in', '(completada,cancelada)')
+      .not('estado', 'in', '(completada,cancelada,no_respuesta)')
       .order('created_at')
     setCitas((data as any) ?? [])
   }
