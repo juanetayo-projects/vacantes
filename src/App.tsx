@@ -11,6 +11,7 @@ import NotificacionesBell from './components/NotificacionesBell'
 
 import Login from './pages/Login'
 import Reset from './pages/Reset'
+import PostulacionDocumentos from './pages/publico/PostulacionDocumentos'
 import Dashboard from './pages/Dashboard'
 import VacantesActivas from './pages/VacantesActivas'
 import NuevaSolicitud from './pages/NuevaSolicitud'
@@ -130,6 +131,7 @@ function Rutas() {
     <Routes>
       <Route path="/login" element={<SoloInvitados><Login /></SoloInvitados>} />
       <Route path="/reset" element={<Reset />} />
+      <Route path="/postulacion/documentos/:token" element={<PostulacionDocumentos />} />
       <Route path="/*" element={
         <Guard>
           <Layout>

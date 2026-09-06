@@ -145,7 +145,7 @@ export default function CandidatosKanban() {
 
   async function guardarContacto() {
     if (!modalContacto || !perfil) return
-    const nuevoEstado = !contactoEfectivo || !interesado ? 'descartado' : 'preseleccionado'
+    const avanza = contactoEfectivo && interesado
     const motivo = !contactoEfectivo ? 'no_contactado' : !interesado ? 'no_interesado' : null
     await supabase.from('postulaciones').update({
       fecha_contacto: new Date().toISOString(),
@@ -153,10 +153,27 @@ export default function CandidatosKanban() {
       interesado: contactoEfectivo ? interesado : null,
       observaciones_contacto: observacionesContacto || null,
       contactado_por: perfil.id,
-      estado: nuevoEstado,
+      estado: avanza ? 'preseleccionado' : 'descartado',
       motivo_descarte: motivo,
       updated_at: new Date().toISOString(),
     }).eq('id', modalContacto.id)
+
+    if (avanza && modalContacto.candidatos.email) {
+      const { data: tokenRow } = await supabase.from('candidato_tokens')
+        .insert({ postulacion_id: modalContacto.id, tipo: 'documentos' }).select('token').single()
+      if (tokenRow) {
+        const { data: sesion } = await supabase.auth.getSession()
+        const { data, error } = await supabase.functions.invoke('notificar-candidato', {
+          body: { postulacion_id: modalContacto.id, tipo: 'documentos', token: tokenRow.token },
+          headers: { Authorization: `Bearer ${sesion.session?.access_token}` },
+        })
+        if (error || data?.error) notify(`El candidato avanzó, pero no se pudo enviar el correo: ${data?.error ?? error?.message}`, 'warning')
+        else notify('Se envió al candidato el enlace para cargar su documentación.', 'success')
+      }
+    } else if (avanza) {
+      notify('El candidato avanzó, pero no tiene correo registrado para enviarle el enlace.', 'warning')
+    }
+
     setModalContacto(null)
     cargar()
   }

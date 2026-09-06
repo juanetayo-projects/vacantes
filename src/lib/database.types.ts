@@ -103,6 +103,44 @@ export type Database = {
           },
         ]
       }
+      candidato_tokens: {
+        Row: {
+          created_at: string
+          expira_at: string
+          id: number
+          postulacion_id: number
+          tipo: string
+          token: string
+          usado_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          expira_at?: string
+          id?: never
+          postulacion_id: number
+          tipo: string
+          token?: string
+          usado_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          expira_at?: string
+          id?: never
+          postulacion_id?: number
+          tipo?: string
+          token?: string
+          usado_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidato_tokens_postulacion_id_fkey"
+            columns: ["postulacion_id"]
+            isOneToOne: false
+            referencedRelation: "postulaciones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       candidatos: {
         Row: {
           created_at: string
@@ -205,6 +243,41 @@ export type Database = {
             columns: ["vacante_id"]
             isOneToOne: false
             referencedRelation: "vacantes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documentos_postulacion: {
+        Row: {
+          created_at: string
+          estado: string
+          id: number
+          postulacion_id: number
+          tipo: string
+          url: string | null
+        }
+        Insert: {
+          created_at?: string
+          estado?: string
+          id?: never
+          postulacion_id: number
+          tipo: string
+          url?: string | null
+        }
+        Update: {
+          created_at?: string
+          estado?: string
+          id?: never
+          postulacion_id?: number
+          tipo?: string
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documentos_postulacion_postulacion_id_fkey"
+            columns: ["postulacion_id"]
+            isOneToOne: false
+            referencedRelation: "postulaciones"
             referencedColumns: ["id"]
           },
         ]
@@ -592,6 +665,7 @@ export type Database = {
           candidato_id: number
           contactado_por: string | null
           contacto_efectivo: boolean | null
+          documentos_recibidos_at: string | null
           estado: Database["public"]["Enums"]["estado_postulacion_enum"]
           fecha_contacto: string | null
           fecha_postulacion: string
@@ -608,6 +682,7 @@ export type Database = {
           candidato_id: number
           contactado_por?: string | null
           contacto_efectivo?: boolean | null
+          documentos_recibidos_at?: string | null
           estado?: Database["public"]["Enums"]["estado_postulacion_enum"]
           fecha_contacto?: string | null
           fecha_postulacion?: string
@@ -624,6 +699,7 @@ export type Database = {
           candidato_id?: number
           contactado_por?: string | null
           contacto_efectivo?: boolean | null
+          documentos_recibidos_at?: string | null
           estado?: Database["public"]["Enums"]["estado_postulacion_enum"]
           fecha_contacto?: string | null
           fecha_postulacion?: string
