@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
-import { PageHeader, Badge, Boton, Modal, Textarea, Select, Input, InputMoneda, TableShell, TableHead, TableEmpty, filaZebra } from '../components/ui'
+import { PageHeader, FilterBar, Badge, Boton, Modal, Textarea, Select, Input, InputMoneda, TableShell, TableHead, TableEmpty, filaZebra } from '../components/ui'
 import { ESTADO_VACANTE_LABELS, formatoFecha } from '../lib/data'
 import type { Tables } from '../lib/database.types'
 
@@ -14,6 +14,10 @@ export default function Requisiciones() {
   const [params] = useSearchParams()
   const { perfil } = useAuth()
   const [vacantes, setVacantes] = useState<Fila[]>([])
+  const [areas, setAreas] = useState<Tables<'areas'>[]>([])
+  const [busqueda, setBusqueda] = useState('')
+  const [filtroArea, setFiltroArea] = useState('')
+  const [filtroEstado, setFiltroEstado] = useState('')
   const [reclutadores, setReclutadores] = useState<Tables<'profiles'>[]>([])
   const [seleccion, setSeleccion] = useState<Fila | null>(null)
   const [guardando, setGuardando] = useState(false)
@@ -28,16 +32,25 @@ export default function Requisiciones() {
   const [estrategia, setEstrategia] = useState('')
 
   async function cargar() {
-    const [{ data }, { data: recl }] = await Promise.all([
+    const [{ data }, { data: recl }, { data: ar }] = await Promise.all([
       supabase.from('vacantes').select('*, areas(nombre), requisiciones(*)')
         .in('estado', ['aprobada', 'en_requisicion']).order('created_at', { ascending: false }),
       supabase.from('profiles').select('*').in('role', ['gestor_th', 'admin']),
+      supabase.from('areas').select('*').order('nombre'),
     ])
     setVacantes((data as any) ?? [])
     setReclutadores(recl ?? [])
+    setAreas(ar ?? [])
   }
 
   useEffect(() => { cargar() }, [])
+
+  const vacantesFiltradas = useMemo(() => vacantes.filter((v) => {
+    if (busqueda && !`${v.codigo} ${v.cargo}`.toLowerCase().includes(busqueda.toLowerCase())) return false
+    if (filtroArea && String(v.area_id) !== filtroArea) return false
+    if (filtroEstado && v.estado !== filtroEstado) return false
+    return true
+  }), [vacantes, busqueda, filtroArea, filtroEstado])
 
   useEffect(() => {
     const vid = params.get('vacante')
@@ -98,12 +111,26 @@ export default function Requisiciones() {
     <div>
       <PageHeader titulo="Requisiciones y Plan de Reclutamiento" subtitulo="Vacantes aprobadas pendientes de plan de reclutamiento" />
 
+      <FilterBar>
+        <Input label="Buscar vacante o código" placeholder="VAC-2026-024, Médico…" value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)} className="w-64" />
+        <Select label="Área" value={filtroArea} onChange={(e) => setFiltroArea(e.target.value)}>
+          <option value="">Todas las áreas</option>
+          {areas.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
+        </Select>
+        <Select label="Estado" value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)}>
+          <option value="">Todos los estados</option>
+          <option value="aprobada">{ESTADO_VACANTE_LABELS.aprobada}</option>
+          <option value="en_requisicion">{ESTADO_VACANTE_LABELS.en_requisicion}</option>
+        </Select>
+      </FilterBar>
+
       <TableShell>
         <TableHead>
           <th>Código</th><th>Cargo</th><th>Área</th><th>Estado</th><th>Aprobada</th><th />
         </TableHead>
         <tbody>
-          {vacantes.map((v, i) => (
+          {vacantesFiltradas.map((v, i) => (
             <tr key={v.id} className={filaZebra(i)}>
               <td className="px-4 py-3 font-medium text-slate-700">{v.codigo}</td>
               <td className="px-4 py-3">{v.cargo}</td>
@@ -113,7 +140,7 @@ export default function Requisiciones() {
               <td className="px-4 py-3 text-right"><Boton className="!px-3 !py-1.5 text-xs" onClick={() => abrir(v)}>Diligenciar</Boton></td>
             </tr>
           ))}
-          {!vacantes.length && <TableEmpty colSpan={6}>No hay vacantes pendientes de requisición</TableEmpty>}
+          {!vacantesFiltradas.length && <TableEmpty colSpan={6}>No hay vacantes que coincidan con el filtro</TableEmpty>}
         </tbody>
       </TableShell>
 

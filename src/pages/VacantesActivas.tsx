@@ -17,6 +17,7 @@ export default function VacantesActivas() {
   const [areas, setAreas] = useState<Tables<'areas'>[]>([])
   const [busqueda, setBusqueda] = useState('')
   const [filtroArea, setFiltroArea] = useState('')
+  const [filtroCargo, setFiltroCargo] = useState('')
   const [filtroEstado, setFiltroEstado] = useState('')
   const [pagina, setPagina] = useState(1)
   const [cargando, setCargando] = useState(true)
@@ -37,14 +38,17 @@ export default function VacantesActivas() {
     cargar()
   }, [])
 
+  const cargos = useMemo(() => [...new Set(vacantes.map((v) => v.cargo))].sort(), [vacantes])
+
   const filtradas = useMemo(() => {
     return vacantes.filter((v) => {
       if (busqueda && !`${v.codigo} ${v.cargo}`.toLowerCase().includes(busqueda.toLowerCase())) return false
       if (filtroArea && String(v.area_id) !== filtroArea) return false
+      if (filtroCargo && v.cargo !== filtroCargo) return false
       if (filtroEstado && v.estado !== filtroEstado) return false
       return true
     })
-  }, [vacantes, busqueda, filtroArea, filtroEstado])
+  }, [vacantes, busqueda, filtroArea, filtroCargo, filtroEstado])
 
   const totalPaginas = Math.max(1, Math.ceil(filtradas.length / PAGE_SIZE))
   const pagina2 = Math.min(pagina, totalPaginas)
@@ -71,6 +75,10 @@ export default function VacantesActivas() {
             {areas.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
           </Select>
         )}
+        <Select label="Cargo" value={filtroCargo} onChange={(e) => { setFiltroCargo(e.target.value); setPagina(1) }}>
+          <option value="">Todos los cargos</option>
+          {cargos.map((c) => <option key={c} value={c}>{c}</option>)}
+        </Select>
         <Select label="Estado" value={filtroEstado} onChange={(e) => { setFiltroEstado(e.target.value); setPagina(1) }}>
           <option value="">Todos los estados</option>
           {Object.entries(ESTADO_VACANTE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}

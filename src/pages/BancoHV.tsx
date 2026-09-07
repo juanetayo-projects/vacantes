@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Search, FileText, Send, Plus, Upload } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAlert } from '../lib/alerts'
-import { PageHeader, Card, Boton, Modal, Input, Select, Textarea, Badge, TableShell, TableHead, TableEmpty, filaZebra } from '../components/ui'
+import { PageHeader, FilterBar, Boton, Modal, Input, Select, Textarea, Badge, TableShell, TableHead, TableEmpty, filaZebra } from '../components/ui'
 import { formatoFecha } from '../lib/data'
 import type { Tables } from '../lib/database.types'
 
@@ -36,6 +36,10 @@ const FORM_VACIO = {
 export default function BancoHV() {
   const { notify } = useAlert()
   const [busqueda, setBusqueda] = useState('')
+  const [filtroFuente, setFiltroFuente] = useState('')
+  const [filtroArea, setFiltroArea] = useState('')
+  const [filtroDesde, setFiltroDesde] = useState('')
+  const [filtroHasta, setFiltroHasta] = useState('')
   const [buscando, setBuscando] = useState(false)
   const [resultados, setResultados] = useState<Candidato[]>([])
   const [vacantesActivas, setVacantesActivas] = useState<Vacante[]>([])
@@ -49,32 +53,28 @@ export default function BancoHV() {
   const [cvNuevo, setCvNuevo] = useState<File | null>(null)
   const [guardandoNuevo, setGuardandoNuevo] = useState(false)
 
-  async function cargarRecientes() {
+  async function buscar() {
     setBuscando(true)
-    const { data } = await supabase.from('candidatos').select('*, areas!candidatos_area_interes_id_fkey(nombre)')
-      .order('created_at', { ascending: false }).limit(30)
+    let q = supabase.from('candidatos').select('*, areas!candidatos_area_interes_id_fkey(nombre)')
+    const b = busqueda.trim()
+    if (b) q = q.or(`nombre.ilike.%${b}%,formacion.ilike.%${b}%,numero_documento.ilike.%${b}%,telefono.ilike.%${b}%,email.ilike.%${b}%,cargo_interes.ilike.%${b}%`)
+    if (filtroFuente) q = q.eq('fuente', filtroFuente as NonNullable<Candidato['fuente']>)
+    if (filtroArea) q = q.eq('area_interes_id', Number(filtroArea))
+    if (filtroDesde) q = q.gte('created_at', filtroDesde)
+    if (filtroHasta) q = q.lt('created_at', new Date(new Date(filtroHasta).getTime() + 86400000).toISOString().slice(0, 10))
+    const { data } = await q.order('created_at', { ascending: false }).limit(50)
     setResultados((data as any) ?? [])
     setBuscando(false)
   }
 
   useEffect(() => {
-    cargarRecientes()
     supabase.from('vacantes').select('*').in('estado', ['publicada', 'en_evaluacion']).order('cargo')
       .then(({ data }) => setVacantesActivas(data ?? []))
     supabase.from('areas').select('*').eq('activo', true).order('nombre')
       .then(({ data }) => setAreas(data ?? []))
   }, [])
 
-  async function buscar() {
-    const b = busqueda.trim()
-    if (!b) { cargarRecientes(); return }
-    setBuscando(true)
-    const { data } = await supabase.from('candidatos').select('*, areas!candidatos_area_interes_id_fkey(nombre)')
-      .or(`nombre.ilike.%${b}%,formacion.ilike.%${b}%,numero_documento.ilike.%${b}%,telefono.ilike.%${b}%,email.ilike.%${b}%,cargo_interes.ilike.%${b}%`)
-      .order('created_at', { ascending: false }).limit(50)
-    setResultados((data as any) ?? [])
-    setBuscando(false)
-  }
+  useEffect(() => { buscar() }, [filtroFuente, filtroArea, filtroDesde, filtroHasta])
 
   async function verHojaDeVida(c: Candidato) {
     if (!c.hoja_vida_url) { notify('Este candidato no tiene hoja de vida adjunta.', 'info'); return }
@@ -158,7 +158,7 @@ export default function BancoHV() {
     setGuardandoNuevo(false)
     setModalNuevo(false)
     notify('Candidato registrado en el Banco de HV.', 'success')
-    cargarRecientes()
+    buscar()
   }
 
   return (
@@ -166,15 +166,22 @@ export default function BancoHV() {
       <PageHeader titulo="Banco de Hojas de Vida" subtitulo="Candidatos disponibles, incluidas las autopostulaciones públicas"
         acciones={<Boton onClick={abrirNuevo}><Plus size={15} className="mr-1 inline" />Registrar Candidato</Boton>} />
 
-      <Card className="mb-4">
-        <div className="flex gap-2">
-          <input value={busqueda} onChange={(e) => setBusqueda(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), buscar())}
-            placeholder="Buscar por nombre, documento, teléfono, correo, formación o cargo de interés…"
-            className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-          <Boton onClick={buscar} disabled={buscando}><Search size={15} className="mr-1 inline" />{buscando ? 'Buscando…' : 'Buscar'}</Boton>
-        </div>
-      </Card>
+      <FilterBar>
+        <Input label="Buscar" placeholder="Nombre, documento, teléfono, correo, formación o cargo…" value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), buscar())} className="w-64" />
+        <Select label="Fuente" value={filtroFuente} onChange={(e) => setFiltroFuente(e.target.value)}>
+          <option value="">Todas las fuentes</option>
+          {Object.entries(FUENTE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+        </Select>
+        <Select label="Área de interés" value={filtroArea} onChange={(e) => setFiltroArea(e.target.value)}>
+          <option value="">Todas las áreas</option>
+          {areas.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
+        </Select>
+        <Input label="Ingresó desde" type="date" value={filtroDesde} onChange={(e) => setFiltroDesde(e.target.value)} />
+        <Input label="Hasta" type="date" value={filtroHasta} onChange={(e) => setFiltroHasta(e.target.value)} />
+        <Boton onClick={buscar} disabled={buscando}><Search size={15} className="mr-1 inline" />{buscando ? 'Buscando…' : 'Buscar'}</Boton>
+      </FilterBar>
 
       <TableShell>
         <TableHead>
