@@ -14,7 +14,7 @@ export default function EvaluacionMedicaLaboral() {
   const { confirm, notify } = useAlert()
   const [citas, setCitas] = useState<Cita[]>([])
   const [modal, setModal] = useState<Cita | null>(null)
-  const [resultado, setResultado] = useState<'apto' | 'no_apto'>('apto')
+  const [resultado, setResultado] = useState<'apto' | 'apto_con_restricciones' | 'no_apto'>('apto')
   const [observaciones, setObservaciones] = useState('')
   const [guardando, setGuardando] = useState(false)
 
@@ -34,10 +34,20 @@ export default function EvaluacionMedicaLaboral() {
 
   async function guardar() {
     if (!modal) return
-    const ok = await confirm(
-      resultado === 'apto' ? '¿Confirmas que el candidato es apto?' : '¿Confirmas que el candidato NO es apto? El proceso se cerrará.',
-      { titulo: 'Registrar concepto médico', variante: resultado === 'apto' ? 'primario' : 'peligro', textoConfirmar: 'Confirmar' },
-    )
+    if (resultado === 'apto_con_restricciones' && !observaciones.trim()) {
+      notify('Describe la restricción en las observaciones antes de guardar.', 'warning')
+      return
+    }
+    const mensajeConfirmacion = resultado === 'apto'
+      ? '¿Confirmas que el candidato es apto?'
+      : resultado === 'apto_con_restricciones'
+        ? '¿Confirmas que el candidato es apto con restricciones? El proceso continúa con la restricción registrada.'
+        : '¿Confirmas que el candidato NO es apto? El proceso se cerrará.'
+    const ok = await confirm(mensajeConfirmacion, {
+      titulo: 'Registrar concepto médico',
+      variante: resultado === 'no_apto' ? 'peligro' : 'primario',
+      textoConfirmar: 'Confirmar',
+    })
     if (!ok) return
     setGuardando(true)
     await supabase.from('citas_medicina_laboral').update({
@@ -63,8 +73,9 @@ export default function EvaluacionMedicaLaboral() {
           body: { postulacion_id: p.id, tipo: 'perfil_sociodemografico', token: tokenRow.token },
           headers: { Authorization: `Bearer ${sesion.session?.access_token}` },
         })
-        if (error || data?.error) notify(`Apto registrado, pero no se pudo enviar el correo: ${data?.error ?? error?.message}`, 'warning')
-        else notify('Apto registrado. Se envió al candidato el formulario de perfil sociodemográfico.', 'success')
+        const etiqueta = resultado === 'apto_con_restricciones' ? 'Apto con restricciones registrado' : 'Apto registrado'
+        if (error || data?.error) notify(`${etiqueta}, pero no se pudo enviar el correo: ${data?.error ?? error?.message}`, 'warning')
+        else notify(`${etiqueta}. Se envió al candidato el formulario de perfil sociodemográfico.`, 'success')
       }
     }
     setGuardando(false); setModal(null)
@@ -95,9 +106,11 @@ export default function EvaluacionMedicaLaboral() {
         <div className="flex flex-col gap-3">
           <Select label="Resultado" value={resultado} onChange={(e) => setResultado(e.target.value as any)}>
             <option value="apto">Apto</option>
+            <option value="apto_con_restricciones">Apto con restricciones</option>
             <option value="no_apto">No apto</option>
           </Select>
-          <Textarea label="Observaciones" rows={4} value={observaciones} onChange={(e) => setObservaciones(e.target.value)} />
+          <Textarea label={resultado === 'apto_con_restricciones' ? 'Restricciones (obligatorio)' : 'Observaciones'}
+            rows={4} value={observaciones} onChange={(e) => setObservaciones(e.target.value)} />
           <div className="flex justify-end gap-2">
             <Boton variante="secundario" onClick={() => setModal(null)}>Cancelar</Boton>
             <Boton disabled={guardando} onClick={guardar}>{guardando ? 'Guardando…' : 'Guardar'}</Boton>
