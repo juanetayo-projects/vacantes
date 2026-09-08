@@ -531,6 +531,30 @@ export type Database = {
           },
         ]
       }
+      familias_cargo: {
+        Row: {
+          activo: boolean
+          codigo: string
+          created_at: string
+          id: number
+          nombre: string
+        }
+        Insert: {
+          activo?: boolean
+          codigo: string
+          created_at?: string
+          id?: never
+          nombre: string
+        }
+        Update: {
+          activo?: boolean
+          codigo?: string
+          created_at?: string
+          id?: never
+          nombre?: string
+        }
+        Relationships: []
+      }
       historial_estados: {
         Row: {
           comentario: string | null
@@ -846,6 +870,53 @@ export type Database = {
         }
         Relationships: []
       }
+      perfiles_cargo: {
+        Row: {
+          cargo: string
+          competencias: Json | null
+          created_at: string
+          experiencia: string | null
+          familia_cargo_id: number | null
+          formacion: string | null
+          id: number
+          version: number
+          vigente_desde: string
+          vigente_hasta: string | null
+        }
+        Insert: {
+          cargo: string
+          competencias?: Json | null
+          created_at?: string
+          experiencia?: string | null
+          familia_cargo_id?: number | null
+          formacion?: string | null
+          id?: never
+          version?: number
+          vigente_desde?: string
+          vigente_hasta?: string | null
+        }
+        Update: {
+          cargo?: string
+          competencias?: Json | null
+          created_at?: string
+          experiencia?: string | null
+          familia_cargo_id?: number | null
+          formacion?: string | null
+          id?: never
+          version?: number
+          vigente_desde?: string
+          vigente_hasta?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "perfiles_cargo_familia_cargo_id_fkey"
+            columns: ["familia_cargo_id"]
+            isOneToOne: false
+            referencedRelation: "familias_cargo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       postulaciones: {
         Row: {
           candidato_id: number
@@ -1049,6 +1120,36 @@ export type Database = {
           },
         ]
       }
+      reglas_negocio: {
+        Row: {
+          accion_tipo: Database["public"]["Enums"]["accion_regla_enum"]
+          accion_valor: Json
+          activo: boolean
+          condicion_tipo: Database["public"]["Enums"]["condicion_regla_enum"]
+          condicion_valor: string
+          created_at: string
+          id: number
+        }
+        Insert: {
+          accion_tipo: Database["public"]["Enums"]["accion_regla_enum"]
+          accion_valor?: Json
+          activo?: boolean
+          condicion_tipo: Database["public"]["Enums"]["condicion_regla_enum"]
+          condicion_valor: string
+          created_at?: string
+          id?: never
+        }
+        Update: {
+          accion_tipo?: Database["public"]["Enums"]["accion_regla_enum"]
+          accion_valor?: Json
+          activo?: boolean
+          condicion_tipo?: Database["public"]["Enums"]["condicion_regla_enum"]
+          condicion_valor?: string
+          created_at?: string
+          id?: never
+        }
+        Relationships: []
+      }
       requisiciones: {
         Row: {
           analisis_puesto: string | null
@@ -1102,6 +1203,44 @@ export type Database = {
             columns: ["vacante_id"]
             isOneToOne: false
             referencedRelation: "vacantes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      requisitos_familia: {
+        Row: {
+          created_at: string
+          etapa: Database["public"]["Enums"]["etapa_requisito_enum"]
+          familia_cargo_id: number
+          id: number
+          nombre: string
+          obligatorio: boolean
+          orden: number
+        }
+        Insert: {
+          created_at?: string
+          etapa: Database["public"]["Enums"]["etapa_requisito_enum"]
+          familia_cargo_id: number
+          id?: never
+          nombre: string
+          obligatorio?: boolean
+          orden?: number
+        }
+        Update: {
+          created_at?: string
+          etapa?: Database["public"]["Enums"]["etapa_requisito_enum"]
+          familia_cargo_id?: number
+          id?: never
+          nombre?: string
+          obligatorio?: boolean
+          orden?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "requisitos_familia_familia_cargo_id_fkey"
+            columns: ["familia_cargo_id"]
+            isOneToOne: false
+            referencedRelation: "familias_cargo"
             referencedColumns: ["id"]
           },
         ]
@@ -1275,6 +1414,7 @@ export type Database = {
           created_at: string
           descripcion_cargo: string | null
           estado: Database["public"]["Enums"]["estado_vacante_enum"]
+          familia_cargo_id: number | null
           fecha_cierre: string | null
           fecha_estimada_cobertura: string | null
           fecha_publicacion: string | null
@@ -1298,6 +1438,7 @@ export type Database = {
           created_at?: string
           descripcion_cargo?: string | null
           estado?: Database["public"]["Enums"]["estado_vacante_enum"]
+          familia_cargo_id?: number | null
           fecha_cierre?: string | null
           fecha_estimada_cobertura?: string | null
           fecha_publicacion?: string | null
@@ -1321,6 +1462,7 @@ export type Database = {
           created_at?: string
           descripcion_cargo?: string | null
           estado?: Database["public"]["Enums"]["estado_vacante_enum"]
+          familia_cargo_id?: number | null
           fecha_cierre?: string | null
           fecha_estimada_cobertura?: string | null
           fecha_publicacion?: string | null
@@ -1343,6 +1485,13 @@ export type Database = {
             columns: ["area_id"]
             isOneToOne: false
             referencedRelation: "areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vacantes_familia_cargo_id_fkey"
+            columns: ["familia_cargo_id"]
+            isOneToOne: false
+            referencedRelation: "familias_cargo"
             referencedColumns: ["id"]
           },
           {
@@ -1431,6 +1580,16 @@ export type Database = {
       veo_todas_areas: { Args: never; Returns: boolean }
     }
     Enums: {
+      accion_regla_enum:
+        | "activar_checklist"
+        | "solicitar_campo"
+        | "bloquear_contratacion"
+        | "relacionar_servicio"
+      condicion_regla_enum:
+        | "familia"
+        | "tipo_necesidad"
+        | "tipo_vinculacion"
+        | "requisito_faltante"
       estado_aprobacion_enum:
         | "pendiente"
         | "aprobado"
@@ -1462,6 +1621,10 @@ export type Database = {
         | "pre_induccion"
         | "induccion_general"
         | "induccion_especifica"
+        | "evaluacion"
+      etapa_requisito_enum:
+        | "verificacion_documental"
+        | "induccion"
         | "evaluacion"
       fuente_candidato_enum:
         | "portal_empleo"
@@ -1612,6 +1775,18 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      accion_regla_enum: [
+        "activar_checklist",
+        "solicitar_campo",
+        "bloquear_contratacion",
+        "relacionar_servicio",
+      ],
+      condicion_regla_enum: [
+        "familia",
+        "tipo_necesidad",
+        "tipo_vinculacion",
+        "requisito_faltante",
+      ],
       estado_aprobacion_enum: [
         "pendiente",
         "aprobado",
@@ -1646,6 +1821,11 @@ export const Constants = {
         "pre_induccion",
         "induccion_general",
         "induccion_especifica",
+        "evaluacion",
+      ],
+      etapa_requisito_enum: [
+        "verificacion_documental",
+        "induccion",
         "evaluacion",
       ],
       fuente_candidato_enum: [
