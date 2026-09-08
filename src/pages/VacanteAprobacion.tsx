@@ -36,6 +36,15 @@ export default function VacanteAprobacion() {
   const puedeDecidir = perfil && (perfil.role === 'admin' || perfil.perm_aprobaciones)
   const indiceActual = aprobaciones.findIndex((a) => a.estado === 'pendiente')
 
+  async function notificarSolicitantePorCorreo(tipo: 'aprobada' | 'rechazada' | 'modificacion_solicitada') {
+    const { data: sesion } = await supabase.auth.getSession()
+    await supabase.functions.invoke('notificar-staff', {
+      body: { vacante_id: idNum, tipo, comentario: comentario || undefined },
+      headers: { Authorization: `Bearer ${sesion.session?.access_token}` },
+    })
+    // Best-effort: si falla el correo, la notificación interna (bandeja) ya quedó registrada.
+  }
+
   async function confirmarDecision() {
     if (!modal || !perfil) return
     if (modal.decision !== 'aprobado' && !comentario.trim()) return
@@ -49,21 +58,30 @@ export default function VacanteAprobacion() {
 
     if (modal.decision === 'rechazado') {
       await supabase.from('vacantes').update({ estado: 'rechazada' }).eq('id', idNum)
-      if (vacante) await crearNotificacion(vacante.solicitante_id,
-        `Solicitud ${vacante.codigo} rechazada`,
-        comentario || 'Tu solicitud fue rechazada.', { tipo: 'error', referenciaTabla: 'vacantes', referenciaId: idNum })
+      if (vacante) {
+        await crearNotificacion(vacante.solicitante_id,
+          `Solicitud ${vacante.codigo} rechazada`,
+          comentario || 'Tu solicitud fue rechazada.', { tipo: 'error', referenciaTabla: 'vacantes', referenciaId: idNum })
+        await notificarSolicitantePorCorreo('rechazada')
+      }
     } else if (modal.decision === 'modificacion_solicitada') {
       await supabase.from('vacantes').update({ estado: 'borrador' }).eq('id', idNum)
-      if (vacante) await crearNotificacion(vacante.solicitante_id,
-        `Solicitud ${vacante.codigo}: se pidió modificación`,
-        comentario || 'Corrige tu solicitud y reenvíala.', { tipo: 'warning', referenciaTabla: 'vacantes', referenciaId: idNum })
+      if (vacante) {
+        await crearNotificacion(vacante.solicitante_id,
+          `Solicitud ${vacante.codigo}: se pidió modificación`,
+          comentario || 'Corrige tu solicitud y reenvíala.', { tipo: 'warning', referenciaTabla: 'vacantes', referenciaId: idNum })
+        await notificarSolicitantePorCorreo('modificacion_solicitada')
+      }
     } else {
       const esUltimo = modal.aprobacion.orden === Math.max(...aprobaciones.map((a) => a.orden))
       if (esUltimo) {
         await supabase.from('vacantes').update({ estado: 'aprobada' }).eq('id', idNum)
-        if (vacante) await crearNotificacion(vacante.solicitante_id,
-          `Solicitud ${vacante.codigo} aprobada`,
-          'Tu solicitud completó el flujo de aprobación.', { tipo: 'success', referenciaTabla: 'vacantes', referenciaId: idNum })
+        if (vacante) {
+          await crearNotificacion(vacante.solicitante_id,
+            `Solicitud ${vacante.codigo} aprobada`,
+            'Tu solicitud completó el flujo de aprobación.', { tipo: 'success', referenciaTabla: 'vacantes', referenciaId: idNum })
+          await notificarSolicitantePorCorreo('aprobada')
+        }
       }
     }
 
