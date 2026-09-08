@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { Plus, ArrowRight, ChevronRight, Search, PhoneCall } from 'lucide-react'
+import { Plus, ArrowRight, ChevronRight, Search, PhoneCall, Trophy } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
 import { PageHeader, Card, Modal, Boton, Input, Select, Textarea } from '../components/ui'
@@ -215,7 +215,14 @@ export default function CandidatosKanban() {
           return (
             <div key={col.estado}>
               <h3 className="mb-2 flex items-center justify-between text-sm font-semibold text-slate-600">
-                {col.titulo} <span className="rounded-full bg-slate-200 px-2 text-xs">{items.length}</span>
+                <span className="flex items-center gap-1">
+                  {col.titulo} <span className="rounded-full bg-slate-200 px-2 text-xs">{items.length}</span>
+                </span>
+                {col.estado === 'finalista' && items.length > 0 && (
+                  <Link to={`/vacantes/${idNum}/seleccion`} className="flex items-center gap-1 text-xs font-medium text-brand-light hover:underline">
+                    <Trophy size={12} /> Comparar y Elegir
+                  </Link>
+                )}
               </h3>
               <div className="flex flex-col gap-2">
                 {items.map((p) => (

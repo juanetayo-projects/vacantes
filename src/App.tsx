@@ -23,6 +23,7 @@ import Solicitudes from './pages/Solicitudes'
 import VacanteAprobacion from './pages/VacanteAprobacion'
 import Requisiciones from './pages/Requisiciones'
 import CandidatosKanban from './pages/CandidatosKanban'
+import SeleccionFinalistas from './pages/SeleccionFinalistas'
 import ListaCandidatos from './pages/ListaCandidatos'
 import BancoHV from './pages/BancoHV'
 import EvaluacionCandidato from './pages/EvaluacionCandidato'
@@ -173,6 +174,7 @@ function Rutas() {
               <Route path="/vacantes/:id/editar" element={<NuevaSolicitud />} />
               <Route path="/vacantes/:id/aprobacion" element={<VacanteAprobacion />} />
               <Route path="/vacantes/:id/candidatos" element={<CandidatosKanban />} />
+              <Route path="/vacantes/:id/seleccion" element={<SeleccionFinalistas />} />
               <Route path="/requisiciones" element={<Requisiciones />} />
               <Route path="/candidatos" element={<ListaCandidatos />} />
               <Route path="/banco-hv" element={<BancoHV />} />
